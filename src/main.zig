@@ -1,4 +1,5 @@
-const console = @import("./console.zig");
+const Console = @import("./console.zig");
+const Logger = @import("./logger.zig").Logger;
 
 const ALIGN = 1 << 0;
 const MEMINFO = 1 << 1;
@@ -57,6 +58,12 @@ export fn _start() callconv(.Naked) noreturn {
 }
 
 fn kmain() callconv(.C) void {
-    console.initialize();
-    console.puts("Hello Zig Kernel!");
+    // Initialize with custom configuration
+    var console = Console.Console.init(.{});
+    var logger = Logger.init(&console);
+
+    logger.info("Kernel started with multiboot flags: 0x{}", .{multiboot.flags});
+    logger.info("Multiboot magic number: 0x{}", .{multiboot.magic});
+    logger.err("This is an error message for testing purposes.", .{});
+    logger.warn("This is a warning message for testing purposes.", .{});
 }
