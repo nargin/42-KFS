@@ -1,5 +1,6 @@
 const Console = @import("./console.zig");
 const Logger = @import("./logger.zig").Logger;
+const Header = @import("./header.zig");
 
 const ALIGN = 1 << 0;
 const MEMINFO = 1 << 1;
@@ -58,12 +59,14 @@ export fn _start() callconv(.Naked) noreturn {
 }
 
 fn kmain() callconv(.C) void {
-    // Initialize with custom configuration
+    // Initialize console and logger
     var console = Console.Console.init(.{});
     var logger = Logger.init(&console);
 
-    logger.info("Kernel started with multiboot flags: 0x{}", .{multiboot.flags});
-    logger.info("Multiboot magic number: 0x{}", .{multiboot.magic});
-    logger.err("This is an error message for testing purposes.", .{});
-    logger.warn("This is a warning message for testing purposes.", .{});
+    // TODO: Header
+    Header.drawHeader(&console, "VeigarOS Kernel");
+
+    logger.info("Kernel started with multiboot flags: 0x{X}", .{multiboot.flags});
+    logger.info("Multiboot magic number: 0x{X}", .{multiboot.checksum});
+    console.printf("42", .{});
 }
