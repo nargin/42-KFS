@@ -26,6 +26,6 @@ clean:
 	rm -rf zig-out kernel.iso isodir
 
 run: $(ISO)
-	qemu-system-x86_64 -cdrom $(ISO) -m 512M -serial stdio -no-reboot -no-shutdown
+	qemu-system-x86_64 -cdrom $(ISO) -vga std -m 512M -serial stdio -no-reboot -no-shutdown
 
 re: clean all run

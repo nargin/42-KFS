@@ -4,7 +4,6 @@ const Writer = @import("std").io.Writer;
 pub const ConsoleConfig = struct {
     width: usize = 80,
     height: usize = 25,
-    memory_address: usize = 0xB8000,
     default_fg: ConsoleColors = .LightGray,
     default_bg: ConsoleColors = .Black,
 };
@@ -28,18 +27,23 @@ pub const ConsoleColors = enum(u8) {
     White = 15,
 };
 
+pub const ConsoleCell = struct {
+    character: u8,
+    color: u8,
+};
+
 pub const Console = struct {
     color: u8,
     row: usize = 0,
     column: usize = 0,
     config: ConsoleConfig,
-    buffer: [*]volatile u16,
+    buffer: [25][80]ConsoleCell,
 
     pub fn init(config: ConsoleConfig) Console {
         var console = Console{
             .config = config,
             .color = vgaEntryColor(config.default_fg, config.default_bg),
-            .buffer = @as([*]volatile u16, @ptrFromInt(config.memory_address)),
+            .buffer = undefined,
         };
         console.clear();
         return console;
@@ -47,10 +51,6 @@ pub const Console = struct {
 
     fn vgaEntryColor(fg: ConsoleColors, bg: ConsoleColors) u8 {
         return @intFromEnum(fg) | (@intFromEnum(bg) << 4);
-    }
-
-    fn vgaEntry(uc: u8, new_color: u8) u16 {
-        return @as(u16, uc) | (@as(u16, new_color) << 8);
     }
 
     pub fn setColor(self: *Console, color: u8) void {
@@ -61,10 +61,23 @@ pub const Console = struct {
         self.color = vgaEntryColor(fg, bg);
     }
 
+    pub fn setColorAt(self: *Console, fg: ConsoleColors, bg: ConsoleColors, x: usize, y: usize) void {
+        const c = vgaEntryColor(fg, bg);
+        if (x >= self.config.width or y >= self.config.height) return;
+        self.buffer[y][x] = ConsoleCell{
+            .character = self.buffer[y][x].character,
+            .color = c,
+        };
+    }
+
     pub fn clear(self: *Console) void {
-        const entry = vgaEntry(' ', self.color);
-        for (0..self.config.width * self.config.height) |i| {
-            self.buffer[i] = entry;
+        for (0..self.config.height) |y| {
+            for (0..self.config.width) |x| {
+                self.buffer[y][x] = ConsoleCell{
+                    .character = ' ',
+                    .color = self.color,
+                };
+            }
         }
         self.column = 0;
         self.row = 0;
@@ -72,8 +85,10 @@ pub const Console = struct {
 
     pub fn putCharAt(self: *Console, c: u8, x: usize, y: usize) void {
         if (x >= self.config.width or y >= self.config.height) return;
-        const index = y * self.config.width + x;
-        self.buffer[index] = vgaEntry(c, self.color);
+        self.buffer[y][x] = ConsoleCell{
+            .character = c,
+            .color = self.color,
+        };
     }
 
     pub fn putChar(self: *Console, c: u8) void {
@@ -85,9 +100,9 @@ pub const Console = struct {
             '\r' => {
                 self.column = 0;
             },
-            // '\t' => {
-            //     self.column = (self.column + 4) & !3;
-            // },
+            '\t' => {
+                self.column = (self.column + 4);
+            },
             else => {
                 self.putCharAt(c, self.column, self.row);
                 self.column += 1;
@@ -107,18 +122,19 @@ pub const Console = struct {
 
     pub fn scrollUp(self: *Console) void {
         // Move all lines up by one
-        const line_size = self.config.width;
-        const screen_size = self.config.width * self.config.height;
-
-        for (line_size..screen_size) |i| {
-            self.buffer[i - line_size] = self.buffer[i];
+        for (1..self.config.height) |y| {
+            for (0..self.config.width) |x| {
+                self.buffer[y - 1][x] = self.buffer[y][x];
+            }
         }
 
         // Clear the last line
-        const last_line_start = (self.config.height - 1) * self.config.width;
-        const entry = vgaEntry(' ', self.color);
-        for (last_line_start..screen_size) |i| {
-            self.buffer[i] = entry;
+        const last_row = self.config.height - 1;
+        for (0..self.config.width) |x| {
+            self.buffer[last_row][x] = ConsoleCell{
+                .character = ' ',
+                .color = self.color,
+            };
         }
     }
 
@@ -138,5 +154,29 @@ pub const Console = struct {
     fn writeCallback(console: *Console, string: []const u8) error{}!usize {
         console.puts(string);
         return string.len;
+    }
+
+    pub fn getCharAt(self: *Console, x: usize, y: usize) ?ConsoleCell {
+        if (x >= self.config.width or y >= self.config.height) return null;
+        return self.buffer[y][x];
+    }
+
+    pub fn getLine(self: *Console, y: usize, line_buffer: []u8) ?[]u8 {
+        if (y >= self.config.height or line_buffer.len < self.config.width) return null;
+
+        for (0..self.config.width) |x| {
+            line_buffer[x] = self.buffer[y][x].character;
+        }
+        return line_buffer[0..self.config.width];
+    }
+
+    pub fn toVgaBuffer(self: *Console, vga_buffer: [*]volatile u16) void {
+        for (0..self.config.height) |y| {
+            for (0..self.config.width) |x| {
+                const index = y * self.config.width + x;
+                const cell = self.buffer[y][x];
+                vga_buffer[index] = @as(u16, cell.character) | (@as(u16, cell.color) << 8);
+            }
+        }
     }
 };

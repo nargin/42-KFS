@@ -59,9 +59,11 @@ export fn _start() callconv(.Naked) noreturn {
 }
 
 fn kmain() callconv(.C) void {
-    // Initialize console and logger
     var console = Console.Console.init(.{});
     var logger = Logger.init(&console);
+
+    // VGA memory buffer for actual display
+    const vga_buffer = @as([*]volatile u16, @ptrFromInt(0xB8000));
 
     // TODO: Header
     Header.drawHeader(&console, "VeigarOS Kernel");
@@ -69,4 +71,28 @@ fn kmain() callconv(.C) void {
     logger.info("Kernel started with multiboot flags: 0x{X}", .{multiboot.flags});
     logger.info("Multiboot magic number: 0x{X}", .{multiboot.checksum});
     console.printf("42", .{});
+
+    // Output to VGA memory initially
+    console.toVgaBuffer(vga_buffer);
+
+    const rainbow: [6]Console.ConsoleColors = .{
+        .Red, .Yellow, .Green, .Cyan, .Blue, .Magenta,
+    };
+
+    var color_index: usize = 0;
+    var delay_counter: u32 = 0;
+    const DELAY_CYCLES = 50000000; // Adjust to control animation speed
+
+    while (true) : (delay_counter += 1) {
+        // Simple delay loop
+        if (delay_counter >= DELAY_CYCLES) {
+            console.setColorAt(.White, rainbow[color_index], 0, 4); // Set color for '4'
+            console.setColorAt(.White, rainbow[color_index], 1, 4); // Set color for '2'
+
+            console.toVgaBuffer(vga_buffer);
+
+            color_index = (color_index + 1) % rainbow.len;
+            delay_counter = 0;
+        }
+    }
 }
