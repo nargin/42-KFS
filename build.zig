@@ -18,7 +18,9 @@ pub fn build(b: *std.Build) void {
         .cpu_features_sub = disabled_features,
         .cpu_features_add = enabled_features,
     };
-    const optimize = b.standardOptimizeOption(.{});
+    const optimize = b.standardOptimizeOption(.{
+        .preferred_optimize_mode = .ReleaseSmall,
+    });
 
     const kernel = b.addExecutable(.{
         .name = "kernel.elf",
@@ -28,6 +30,7 @@ pub fn build(b: *std.Build) void {
         .code_model = .kernel,
         .strip = true,
         .single_threaded = true,
+        .omit_frame_pointer = true,
     });
 
     kernel.setLinkerScript(b.path("boot/linker.ld"));

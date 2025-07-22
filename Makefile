@@ -6,7 +6,6 @@ GRUB_DIR := $(ISO_DIR)/grub
 KERNEL := $(BUILD_DIR)/kernel.elf
 ISO := kernel.iso
 
-# Zig build command
 ZIG_BUILD := zig build
 
 .PHONY: all clean run
@@ -20,7 +19,13 @@ $(ISO): $(KERNEL)
 	@mkdir -p $(GRUB_DIR)
 	@cp $(KERNEL) $(ISO_DIR)
 	@cp boot/grub.cfg $(GRUB_DIR)
-	grub-mkrescue -o $(ISO) isodir
+	grub-mkrescue -o $(ISO) isodir \
+		--install-modules="multiboot" \
+		--compress=xz \
+		--locales="" \
+		--themes="" \
+		--fonts=""
+
 
 clean:
 	rm -rf zig-out kernel.iso isodir
