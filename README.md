@@ -1,5 +1,10 @@
 # VeigarOS Kernel
 
+<p align="center">
+  <img width="720" height="457" alt="image" src="https://github.com/user-attachments/assets/76b3e3ae-d001-453f-b678-20211b84d7ad" />
+</p>
+
+
 A minimal x86 operating system kernel written in Zig, designed for learning and educational purposes. The kernel features a multi-screen interface, keyboard input, scrollable logs, and VGA text-mode display.
 
 ## Table of Contents
