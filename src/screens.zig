@@ -25,9 +25,11 @@ pub fn drawHeader(current_screen: ScreenType) void {
 
     // Header content - compact
     var i: usize = 0;
-    while (i < vga.VGA_WIDTH) : (i += 1) { vga.putChar(i, 0, '=', 0x5E); }
-    vga.putString(32, 1, "VeigarOS", 0x5F); // White on purple (centered)
-    vga.putString(29, 2, "Interactive v1.0", 0x5E); // Yellow on purple (centered)
+    while (i < vga.VGA_WIDTH) : (i += 1) {
+        vga.putChar(i, 0, '=', 0x5E);
+    }
+    vga.putString(36, 1, "VeigarOS", 0x5F); // White on purple (centered)
+    vga.putString(32, 2, "Interactive v1.0", 0x5E); // Yellow on purple (centered)
 
     // Screen indicators at bottom of header
     vga.putString(2, 3, "F1:Main", if (current_screen == .Main) 0x5C else 0x58);
@@ -35,7 +37,10 @@ pub fn drawHeader(current_screen: ScreenType) void {
     vga.putString(24, 3, "F3:Logs", if (current_screen == .Logs) 0x5C else 0x58);
     vga.putString(34, 3, "F4:About", if (current_screen == .About) 0x5C else 0x58);
 
-    i = 0; while (i < vga.VGA_WIDTH) : (i += 1) { vga.putChar(i, 4, '=', 0x5E); }
+    i = 0;
+    while (i < vga.VGA_WIDTH) : (i += 1) {
+        vga.putChar(i, 4, '=', 0x5E);
+    }
 }
 
 pub fn renderMainScreen() void {
@@ -48,16 +53,16 @@ pub fn renderMainScreen() void {
     const start_row = 10;
     const visible_lines = 11; // Lines 10-20 visible
     const max_scroll = if (main_output_count > visible_lines) main_output_count - visible_lines else 0;
-    
+
     // Ensure scroll offset is valid
     if (main_scroll_offset > max_scroll) {
         main_scroll_offset = max_scroll;
     }
-    
+
     for (0..visible_lines) |display_idx| {
         const output_idx = main_scroll_offset + display_idx;
         const screen_row = start_row + display_idx;
-        
+
         if (output_idx < main_output_count and screen_row < 21) { // Don't overlap input area
             const line: []const u8 = std.mem.sliceTo(&main_output_lines[output_idx], 0);
             if (line.len > 0) {
@@ -65,7 +70,7 @@ pub fn renderMainScreen() void {
             }
         }
     }
-    
+
     // Show scroll indicator if there are more lines
     if (main_output_count > visible_lines) {
         var scroll_info: [30]u8 = undefined;
@@ -92,21 +97,21 @@ pub fn renderLogsScreen() void {
     vga.putString(32, 6, "Kernel Logs", 0x0F);
     vga.putString(0, 7, "=" ** vga.VGA_WIDTH, 0x08); // Dark gray separator
     vga.putString(5, 8, "Use Up/Down arrows to scroll through logs", 0x07);
-    
+
     // Display scrollable logs
     const start_row = 10;
     const visible_lines = 13; // Lines 10-22 visible
     const max_scroll = if (log_count > visible_lines) log_count - visible_lines else 0;
-    
+
     // Ensure scroll offset is valid
     if (log_scroll_offset > max_scroll) {
         log_scroll_offset = max_scroll;
     }
-    
+
     for (0..visible_lines) |display_idx| {
         const log_idx = log_scroll_offset + display_idx;
         const screen_row = start_row + display_idx;
-        
+
         if (log_idx < log_count and screen_row < vga.VGA_HEIGHT - 2) {
             const log_line: []const u8 = std.mem.sliceTo(&log_lines[log_idx], 0);
             if (log_line.len > 0) {
@@ -116,7 +121,7 @@ pub fn renderLogsScreen() void {
             }
         }
     }
-    
+
     // Show scroll info
     var info_buffer: [50]u8 = undefined;
     if (log_count > visible_lines) {
@@ -192,7 +197,7 @@ pub fn addLog(message: []const u8) void {
         // Ensure null termination
         log_lines[49][copy_len] = 0;
     }
-    
+
     // Auto-scroll to show newest logs (reset scroll when new log added)
     log_scroll_offset = 0;
 }
