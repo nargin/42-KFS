@@ -182,7 +182,6 @@ KFS/
 │   └── linker.ld         # Linker script
 ├── build.zig             # Zig build configuration
 ├── Makefile              # Build automation
-├── CLAUDE.md             # Development notes
 └── README.md             # This file
 ```
 
