@@ -1,5 +1,8 @@
 # VeigarOS Kernel
 
+Live demo : https://nargin.github.io/kernel <br />
+Still some display bugs but working on it
+
 <p align="center">
   <img width="720" height="457" alt="image" src="https://github.com/user-attachments/assets/76b3e3ae-d001-453f-b678-20211b84d7ad" />
 </p>
