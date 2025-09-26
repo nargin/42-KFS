@@ -1,8 +1,13 @@
 const std = @import("std");
 const vga = @import("./vga.zig");
+const colors = @import("./colors.zig");
+const Color = colors.Color;
 
 // Screen management types
 pub const ScreenType = enum { Main, Status, Logs, About };
+
+// Input types
+pub const InputType = enum { Command, Text };
 
 // Data storage for screens (reduced for size optimization)
 pub var main_output_lines: [25][80]u8 = [_][80]u8{[_]u8{0} ** 80} ** 25;
@@ -12,6 +17,19 @@ pub var main_scroll_offset: usize = 0;
 pub var log_lines: [50][80]u8 = [_][80]u8{[_]u8{0} ** 80} ** 50;
 pub var log_count: usize = 0;
 pub var log_scroll_offset: usize = 0;
+
+// Windows menu popup state
+pub var menu_visible: bool = false;
+pub var menu_search_buffer: [64]u8 = [_]u8{0} ** 64;
+pub var menu_search_length: usize = 0;
+pub var menu_search_cursor: usize = 0;
+
+fn indicatorColor(current: ScreenType, indicator: ScreenType) u8 {
+    return if (current == indicator)
+        colors.makeColor(Color.Black, Color.Yellow)
+    else
+        colors.makeColor(Color.White, Color.Magenta);
+}
 
 pub fn drawHeader(current_screen: ScreenType) void {
     // Purple header background (rows 0-4, more compact)
@@ -24,30 +42,25 @@ pub fn drawHeader(current_screen: ScreenType) void {
     }
 
     // Header content - compact
-    var i: usize = 0;
-    while (i < vga.VGA_WIDTH) : (i += 1) {
-        vga.putChar(i, 0, '=', 0x5E);
-    }
-    vga.putString(36, 1, "VeigarOS", 0x5F); // White on purple (centered)
-    vga.putString(32, 2, "Interactive v1.0", 0x5E); // Yellow on purple (centered)
+    vga.putStringCentered(0, "=" ** (vga.VGA_WIDTH), colors.makeColor(Color.Yellow, Color.Magenta));
+
+    vga.putStringCentered(1, "VeigarOS", colors.makeColor(Color.White, Color.Magenta));
+    vga.putStringCentered(2, "Interactive v1.0", colors.makeColor(Color.Yellow, Color.Magenta));
 
     // Screen indicators at bottom of header
-    vga.putString(2, 3, "F1:Main", if (current_screen == .Main) 0x5C else 0x58);
-    vga.putString(12, 3, "F2:Status", if (current_screen == .Status) 0x5C else 0x58);
-    vga.putString(24, 3, "F3:Logs", if (current_screen == .Logs) 0x5C else 0x58);
-    vga.putString(34, 3, "F4:About", if (current_screen == .About) 0x5C else 0x58);
+    vga.putString(2, 3, "F1:Main", indicatorColor(current_screen, .Main));
+    vga.putString(12, 3, "F2:Status", indicatorColor(current_screen, .Status));
+    vga.putString(24, 3, "F3:Logs", indicatorColor(current_screen, .Logs));
+    vga.putString(34, 3, "F4:About", indicatorColor(current_screen, .About));
 
-    i = 0;
-    while (i < vga.VGA_WIDTH) : (i += 1) {
-        vga.putChar(i, 4, '=', 0x5E);
-    }
+    vga.putStringCentered(4, "=" ** (vga.VGA_WIDTH), colors.makeColor(Color.Yellow, Color.Magenta));
 }
 
 pub fn renderMainScreen() void {
     // Initial messages
-    vga.putString(5, 6, "Kernel started!", 0x0A); // Green on black
-    vga.putString(5, 7, "Keyboard enabled.", 0x0F); // White on black
-    vga.putString(5, 8, "Type below. Use arrows to scroll.", 0x0F); // White on black
+    vga.putString(5, 6, "Kernel started!", @intFromEnum(Color.LightGreen));
+    vga.putString(5, 7, "Keyboard enabled.", @intFromEnum(Color.White));
+    vga.putString(5, 8, "Type below. Use arrows to scroll.", @intFromEnum(Color.White));
 
     // Show scrollable output (10 lines visible)
     const start_row = 10;
@@ -81,21 +94,21 @@ pub fn renderMainScreen() void {
 }
 
 pub fn renderStatusScreen() void {
-    vga.putString(30, 8, "System Status", 0x0F);
-    vga.putString(5, 10, "Kernel: VeigarOS v1.0", 0x0A);
-    vga.putString(5, 11, "Architecture: x86", 0x0F);
-    vga.putString(5, 12, "Memory: 512MB", 0x0F);
-    vga.putString(5, 13, "Status: Running", 0x0A);
-    vga.putString(5, 15, "Screens available:", 0x0E);
-    vga.putString(7, 16, "F1: Main Terminal", 0x0F);
-    vga.putString(7, 17, "F2: System Status", 0x0F);
-    vga.putString(7, 18, "F3: Kernel Logs", 0x0F);
-    vga.putString(7, 19, "F4: About", 0x0F);
+    vga.putString(30, 8, "System Status", @intFromEnum(Color.White));
+    vga.putString(5, 10, "Kernel: VeigarOS v1.0", @intFromEnum(Color.LightGreen));
+    vga.putString(5, 11, "Architecture: x86", @intFromEnum(Color.White));
+    vga.putString(5, 12, "Memory: 512MB", @intFromEnum(Color.White));
+    vga.putString(5, 13, "Status: Running", @intFromEnum(Color.LightGreen));
+    vga.putString(5, 15, "Screens available:", @intFromEnum(Color.Yellow));
+    vga.putString(7, 16, "F1: Main Terminal", @intFromEnum(Color.White));
+    vga.putString(7, 17, "F2: System Status", @intFromEnum(Color.White));
+    vga.putString(7, 18, "F3: Kernel Logs", @intFromEnum(Color.White));
+    vga.putString(7, 19, "F4: About", @intFromEnum(Color.White));
 }
 
 pub fn renderLogsScreen() void {
-    vga.putString(32, 6, "Kernel Logs", 0x0F);
-    vga.putString(0, 7, "=" ** vga.VGA_WIDTH, 0x08); // Dark gray separator
+    vga.putString(32, 6, "Kernel Logs", @intFromEnum(Color.White));
+    vga.putString(0, 7, "=" ** vga.VGA_WIDTH, @intFromEnum(Color.DarkGray));
     vga.putString(5, 8, "Use Up/Down arrows to scroll through logs", 0x07);
 
     // Display scrollable logs
@@ -140,14 +153,13 @@ pub fn renderLogsScreen() void {
 }
 
 pub fn renderAboutScreen() void {
-    vga.putString(35, 8, "About", 0x0F);
-    vga.putString(25, 11, "VeigarOS Kernel v1.0", 0x0E);
-    vga.putString(30, 13, "Built with Zig", 0x07);
-    vga.putString(20, 15, "A simple x86 kernel for learning", 0x0F);
-    vga.putString(28, 16, "purposes and fun!", 0x0F);
+    vga.putStringCentered(8, "About", @intFromEnum(Color.White));
+    vga.putStringCentered(11, "VeigarOS Kernel v1.0", @intFromEnum(Color.LightGray));
+    vga.putStringCentered(13, "Built with Zig", @intFromEnum(Color.LightGray));
+    vga.putStringCentered(15, "A simple x86 kernel for learning purposes", @intFromEnum(Color.White));
 
-    vga.putString(15, 19, "Author: Robin (Claude) Romain by contributions", 0x08);
-    vga.putString(25, 20, "Press F1-F4 to navigate", 0x0C);
+    vga.putStringCentered(19, "Author: Robin (Claude) Romain by contributions", @intFromEnum(Color.DarkGray));
+    vga.putStringCentered(20, "Press F1-F4 to navigate", @intFromEnum(Color.Cyan));
 }
 
 pub fn renderCurrentScreen(current_screen: ScreenType) void {
@@ -156,7 +168,7 @@ pub fn renderCurrentScreen(current_screen: ScreenType) void {
     while (row < vga.VGA_HEIGHT) : (row += 1) {
         var col: usize = 0;
         while (col < vga.VGA_WIDTH) : (col += 1) {
-            vga.putChar(col, row, ' ', 0x07); // Clear with default colors
+            vga.putChar(col, row, ' ', @intFromEnum(Color.LightGray)); // Clear with default colors
         }
     }
 
@@ -200,4 +212,73 @@ pub fn addLog(message: []const u8) void {
 
     // Auto-scroll to show newest logs (reset scroll when new log added)
     log_scroll_offset = 0;
+}
+
+pub fn showWindowsMenu() void {
+    menu_visible = true;
+    menu_search_length = 0;
+    menu_search_cursor = 0;
+    for (0..menu_search_buffer.len) |i| {
+        menu_search_buffer[i] = 0;
+    }
+}
+
+pub fn hideWindowsMenu() void {
+    menu_visible = false;
+}
+
+pub fn drawWindowsMenu() void {
+    if (!menu_visible) return;
+
+    // Menu dimensions - centered on screen (4 lines tall)
+    const menu_width = 50;
+    const menu_height = 4;
+    const start_col = (vga.VGA_WIDTH - menu_width) / 2;
+    const start_row = (vga.VGA_HEIGHT - menu_height) / 2;
+
+    // Draw 4-line box
+    // Top line: /------\
+    vga.putChar(start_col, start_row, '/', colors.makeColor(Color.White, Color.Black)); // Top-left corner
+    for (1..menu_width - 1) |i| {
+        vga.putChar(start_col + i, start_row, '-', colors.makeColor(Color.White, Color.Black)); // Top border
+    }
+    vga.putChar(start_col + menu_width - 1, start_row, '\\', colors.makeColor(Color.White, Color.Black)); // Top-right corner
+
+    // Second line: | Search: |
+    vga.putChar(start_col, start_row + 1, '|', colors.makeColor(Color.White, Color.Black)); // Left border
+    // Clear the line
+    for (1..menu_width - 1) |i| {
+        vga.putChar(start_col + i, start_row + 1, ' ', colors.makeColor(Color.LightGray, Color.Black)); // Background
+    }
+    // Add "Search:" label
+    vga.putString(start_col + 2, start_row + 1, "Search:", colors.makeColor(Color.White, Color.Black));
+    vga.putChar(start_col + menu_width - 1, start_row + 1, '|', colors.makeColor(Color.White, Color.Black)); // Right border
+
+    // Third line: |  input field  |
+    vga.putChar(start_col, start_row + 2, '|', colors.makeColor(Color.White, Color.Black)); // Left border
+    // Clear and draw input field in gray
+    const search_start = start_col + 2;
+    const search_width = menu_width - 4;
+    for (0..search_width) |i| {
+        vga.putChar(search_start + i, start_row + 2, ' ', colors.makeColor(Color.Black, Color.LightGray)); // Input field
+    }
+    vga.putChar(start_col + menu_width - 1, start_row + 2, '|', colors.makeColor(Color.White, Color.Black)); // Right border
+
+    // Display search text in gray input field
+    if (menu_search_length > 0) {
+        const display_len = @min(menu_search_length, search_width - 1);
+        const search_text: []const u8 = menu_search_buffer[0..display_len];
+        vga.putString(search_start, start_row + 2, search_text, colors.makeColor(Color.Black, Color.LightGray));
+    }
+
+    // Bottom line: \------/
+    vga.putChar(start_col, start_row + 3, '\\', colors.makeColor(Color.White, Color.Black)); // Bottom-left corner
+    for (1..menu_width - 1) |i| {
+        vga.putChar(start_col + i, start_row + 3, '-', colors.makeColor(Color.White, Color.Black)); // Bottom border
+    }
+    vga.putChar(start_col + menu_width - 1, start_row + 3, '/', colors.makeColor(Color.White, Color.Black)); // Bottom-right corner
+
+    // Position cursor in search box
+    const cursor_pos = @min(search_start + menu_search_cursor, search_start + search_width - 1);
+    vga.setCursorPosition(cursor_pos, start_row + 2);
 }

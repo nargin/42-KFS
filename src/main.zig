@@ -1,5 +1,7 @@
 const std = @import("std");
-const Keyboard = @import("./keyboard.zig").Keyboard;
+const Keyboard = @import("./keyboard/keyboard.zig").Keyboard;
+const keys = @import("./keyboard/keys.zig").Key;
+const Color = @import("./vga.zig").Color;
 const vga = @import("./vga.zig");
 const screens = @import("./screens.zig");
 const input = @import("./input.zig");
@@ -56,11 +58,11 @@ fn kmain() callconv(.C) void {
 
     // Initialize display
     vga.clearScreen(0x07); // Light gray on black
-    
+
     // Set up hardware cursor
     vga.showCursor();
-    vga.setCursorPosition(9, 23); // Position at input area initially
-    
+    vga.setCursorPosition(input.INPUT_PROMPT.len, 23); // Position at input area initially
+
     screens.renderCurrentScreen(current_screen); // This will draw header and main screen
     input.drawInput(current_screen);
 
@@ -71,27 +73,49 @@ fn kmain() callconv(.C) void {
                 // Handle F-key screen switching
                 const key_code = key_event.scancode & 0x7F;
                 switch (key_code) {
-                    0x3B => switchToScreen(.Main), // F1
-                    0x3C => switchToScreen(.Status), // F2
-                    0x3D => switchToScreen(.Logs), // F3
-                    0x3E => switchToScreen(.About), // F4
+                    @intFromEnum(keys.F1) => switchToScreen(.Main),
+                    @intFromEnum(keys.F2) => switchToScreen(.Status),
+                    @intFromEnum(keys.F3) => switchToScreen(.Logs),
+                    @intFromEnum(keys.F4) => switchToScreen(.About),
+                    @intFromEnum(keys.Tab) => {
+                        // Toggle menu visibility
+                        screens.menu_visible = !screens.menu_visible;
+                        screens.renderCurrentScreen(current_screen);
+                        input.drawInput(current_screen);
+                        screens.drawWindowsMenu();
+                    },
                     else => {
-                        // Handle arrow keys
+                        // Handle special keys
                         if (key_event.special) |special_key| {
-                            input.handleArrowKey(special_key, current_screen);
-                            // Re-render screen to show scrolling changes
-                            screens.renderCurrentScreen(current_screen);
-                            input.drawInput(current_screen);
+                            switch (special_key) {
+                                .WindowsKey => {
+                                    screens.showWindowsMenu();
+                                    screens.renderCurrentScreen(current_screen);
+                                    input.drawInput(current_screen);
+                                    screens.drawWindowsMenu();
+                                },
+                                else => {
+                                    input.handleArrowKey(special_key, current_screen);
+                                    // Re-render screen to show scrolling changes
+                                    screens.renderCurrentScreen(current_screen);
+                                    input.drawInput(current_screen);
+                                },
+                            }
                         }
-                        // Handle regular character input (only for Main screen)
-                        else if (current_screen == .Main) {
+                        // Handle character input for menu or current screen
+                        else {
                             if (key_event.character) |char| {
-                                if (char == '\n') {
+                                input.handleChar(char);
+
+                                // Redraw everything
+                                screens.renderCurrentScreen(current_screen);
+                                input.drawInput(current_screen);
+                                screens.drawWindowsMenu(); // Always call this - it checks if menu is visible
+
+                                // Special handling for Main screen input
+                                if (char == '\n' and current_screen == .Main and !screens.menu_visible) {
                                     input.processInput(current_screen);
-                                    input.drawInput(current_screen); // Redraw input area after processing
-                                } else {
-                                    input.handleChar(char);
-                                    input.drawInput(current_screen); // Redraw input area after each keystroke
+                                    input.drawInput(current_screen);
                                 }
                             }
                         }

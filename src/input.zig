@@ -2,7 +2,7 @@ const std = @import("std");
 const vga = @import("./vga.zig");
 const screens = @import("./screens.zig");
 const ScreenType = screens.ScreenType;
-const Keyboard = @import("./keyboard.zig").Keyboard;
+const SpecialKey = @import("./keyboard/keyboard.zig").SpecialKey;
 
 // Input state
 pub var main_input_buffer: [256]u8 = [_]u8{0} ** 256;
@@ -16,31 +16,34 @@ pub var input_length: *usize = &main_input_length;
 pub var input_cursor: *usize = &main_input_cursor;
 pub var output_row: *usize = &main_output_row;
 
+pub const PROMPT: []const u8 = "> Input: ";
+
 pub fn drawInput(current_screen: ScreenType) void {
     // Only draw input for Main screen
     if (current_screen != .Main) return;
 
     // Input area
     vga.putString(0, 22, "=" ** vga.VGA_WIDTH, 0x1E); // Yellow on blue
-    vga.putString(0, 23, "> Input: ", 0x0B); // Cyan on black
+    vga.putString(0, 23, PROMPT, 0x0B); // Cyan on black
 
     // Clear input line from position 9 onwards
-    var col: usize = 9;
+    var col: usize = PROMPT.len;
     while (col < vga.VGA_WIDTH) : (col += 1) {
         vga.putChar(col, 23, ' ', 0x07); // Clear with default colors
     }
 
     // Display current input (limit to screen width)
     if (input_length.* > 0) {
-        const max_display_chars = vga.VGA_WIDTH - 9; // 71 characters max
+        const max_display_chars = vga.VGA_WIDTH - PROMPT.len; // 71 characters max
         const display_len = @min(input_length.*, max_display_chars);
         const display_text = input_buffer.*[0..display_len];
-        vga.putString(9, 23, display_text, 0x0F); // White on black
+        vga.putString(PROMPT.len, 23, display_text, 0x0F); // White on black
     }
 
     // Update hardware cursor position for Main screen (if visible)
+
     if (current_screen == .Main) {
-        const cursor_pos = @min(9 + input_cursor.*, vga.VGA_WIDTH - 1);
+        const cursor_pos = @min(PROMPT.len + input_cursor.*, vga.VGA_WIDTH - 1);
         vga.setCursorPosition(cursor_pos, 23);
     }
 }
@@ -91,6 +94,20 @@ pub fn processInput(current_screen: ScreenType) void {
 }
 
 pub fn handleChar(char: u8) void {
+    // Handle ESC key to close Windows menu
+    if (char == 27) { // ESC
+        if (screens.menu_visible) {
+            screens.hideWindowsMenu();
+            return;
+        }
+    }
+
+    // If Windows menu is visible, handle menu input
+    if (screens.menu_visible) {
+        handleMenuChar(char);
+        return;
+    }
+
     switch (char) {
         0x08 => { // Backspace
             if (input_cursor.* > 0) {
@@ -127,7 +144,44 @@ pub fn handleChar(char: u8) void {
     }
 }
 
-pub fn handleArrowKey(arrow_key: anytype, current_screen: ScreenType) void {
+pub fn handleMenuChar(char: u8) void {
+    switch (char) {
+        0x08 => { // Backspace in menu search
+            if (screens.menu_search_cursor > 0) {
+                screens.menu_search_cursor -= 1;
+                // Shift characters left
+                for (screens.menu_search_cursor..screens.menu_search_length - 1) |i| {
+                    screens.menu_search_buffer[i] = screens.menu_search_buffer[i + 1];
+                }
+                screens.menu_search_length -= 1;
+                screens.menu_search_buffer[screens.menu_search_length] = 0;
+            }
+        },
+        '\n' => { // Enter in menu - could select item or search
+            // For now, just close menu
+            screens.hideWindowsMenu();
+        },
+        else => {
+            const max_search_chars = 60;
+            if (char >= 32 and char <= 126 and screens.menu_search_length < @min(63, max_search_chars)) {
+                // Shift characters right to make room for new character
+                if (screens.menu_search_cursor < screens.menu_search_length) {
+                    var i = screens.menu_search_length;
+                    while (i > screens.menu_search_cursor) {
+                        screens.menu_search_buffer[i] = screens.menu_search_buffer[i - 1];
+                        i -= 1;
+                    }
+                }
+                // Insert new character at cursor position
+                screens.menu_search_buffer[screens.menu_search_cursor] = char;
+                screens.menu_search_length += 1;
+                screens.menu_search_cursor += 1;
+            }
+        },
+    }
+}
+
+pub fn handleArrowKey(arrow_key: SpecialKey, current_screen: ScreenType) void {
     switch (current_screen) {
         .Main => {
             switch (arrow_key) {
@@ -155,6 +209,9 @@ pub fn handleArrowKey(arrow_key: anytype, current_screen: ScreenType) void {
                         screens.main_scroll_offset -= 1;
                     }
                 },
+                .WindowsKey => {
+                    // Handled in main loop
+                },
             }
         },
         .Logs => {
@@ -175,6 +232,9 @@ pub fn handleArrowKey(arrow_key: anytype, current_screen: ScreenType) void {
                 },
                 .ArrowLeft, .ArrowRight => {
                     // No horizontal scrolling in logs
+                },
+                .WindowsKey => {
+                    // Handled in main loop
                 },
             }
         },

@@ -9,7 +9,8 @@ pub const VGA_HEIGHT = 25;
 fn outb(port: u16, value: u8) void {
     asm volatile ("outb %[value], %[port]"
         :
-        : [value] "{al}" (value), [port] "N{dx}" (port)
+        : [value] "{al}" (value),
+          [port] "N{dx}" (port),
     );
 }
 
@@ -27,6 +28,12 @@ pub fn putChar(x: usize, y: usize, char: u8, color: u8) void {
     VGA_BUFFER[index] = @as(u16, char) | (@as(u16, color) << 8);
 }
 
+/// Only the Y coordinate is specified, X is calculated to center the text
+pub fn putStringCentered(y: usize, text: []const u8, color: u8) void {
+    const x = (VGA_WIDTH - text.len) / 2;
+    putString(x, y, text, color);
+}
+
 pub fn putString(x: usize, y: usize, text: []const u8, color: u8) void {
     for (text, 0..) |char, i| {
         if (x + i >= VGA_WIDTH) break;
@@ -37,11 +44,11 @@ pub fn putString(x: usize, y: usize, text: []const u8, color: u8) void {
 // VGA cursor control functions
 pub fn setCursorPosition(x: usize, y: usize) void {
     const pos: u16 = @intCast(y * VGA_WIDTH + x);
-    
+
     // Set cursor position using VGA registers
     outb(0x3D4, 0x0F); // Cursor location low byte register
     outb(0x3D5, @intCast(pos & 0xFF));
-    outb(0x3D4, 0x0E); // Cursor location high byte register  
+    outb(0x3D4, 0x0E); // Cursor location high byte register
     outb(0x3D5, @intCast((pos >> 8) & 0xFF));
 }
 
