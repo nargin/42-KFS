@@ -61,7 +61,7 @@ fn kmain() callconv(.C) void {
 
     // Set up hardware cursor
     vga.showCursor();
-    vga.setCursorPosition(input.INPUT_PROMPT.len, 23); // Position at input area initially
+    vga.setCursorPosition(input.PROMPT.len, 23); // Position at input area initially
 
     screens.renderCurrentScreen(current_screen); // This will draw header and main screen
     input.drawInput(current_screen);
