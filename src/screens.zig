@@ -58,9 +58,9 @@ pub fn drawHeader(current_screen: ScreenType) void {
 
 pub fn renderMainScreen() void {
     // Initial messages
-    vga.putString(5, 6, "Kernel started!", @intFromEnum(Color.LightGreen));
-    vga.putString(5, 7, "Keyboard enabled.", @intFromEnum(Color.White));
-    vga.putString(5, 8, "Type below. Use arrows to scroll.", @intFromEnum(Color.White));
+    vga.putString(0, 6, "Type below. Use arrows to scroll.", @intFromEnum(Color.White));
+    vga.putString(0, 7, "Press Tab to switch screens.", @intFromEnum(Color.White));
+    vga.putString(0, 8, "=" ** vga.VGA_WIDTH, @intFromEnum(Color.DarkGray));
 
     // Show scrollable output (10 lines visible)
     const start_row = 10;
@@ -94,22 +94,22 @@ pub fn renderMainScreen() void {
 }
 
 pub fn renderStatusScreen() void {
-    vga.putString(30, 8, "System Status", @intFromEnum(Color.White));
+    vga.putStringCentered(8, "System Status", @intFromEnum(Color.White));
     vga.putString(5, 10, "Kernel: VeigarOS v1.0", @intFromEnum(Color.LightGreen));
     vga.putString(5, 11, "Architecture: x86", @intFromEnum(Color.White));
     vga.putString(5, 12, "Memory: 512MB", @intFromEnum(Color.White));
     vga.putString(5, 13, "Status: Running", @intFromEnum(Color.LightGreen));
     vga.putString(5, 15, "Screens available:", @intFromEnum(Color.Yellow));
     vga.putString(7, 16, "F1: Main Terminal", @intFromEnum(Color.White));
-    vga.putString(7, 17, "F2: System Status", @intFromEnum(Color.White));
+    vga.putString(5, 17, "> F2: System Status", @intFromEnum(Color.White));
     vga.putString(7, 18, "F3: Kernel Logs", @intFromEnum(Color.White));
     vga.putString(7, 19, "F4: About", @intFromEnum(Color.White));
 }
 
 pub fn renderLogsScreen() void {
-    vga.putString(32, 6, "Kernel Logs", @intFromEnum(Color.White));
+    vga.putStringCentered(6, "Kernel Logs", @intFromEnum(Color.White));
     vga.putString(0, 7, "=" ** vga.VGA_WIDTH, @intFromEnum(Color.DarkGray));
-    vga.putString(5, 8, "Use Up/Down arrows to scroll through logs", 0x07);
+    vga.putString(5, 8, "Use Up/Down arrows to scroll through logs", @intFromEnum(Color.LightGray));
 
     // Display scrollable logs
     const start_row = 10;
@@ -130,7 +130,7 @@ pub fn renderLogsScreen() void {
             if (log_line.len > 0) {
                 // Limit display to screen width
                 const display_len = @min(log_line.len, vga.VGA_WIDTH);
-                vga.putString(0, screen_row, log_line[0..display_len], 0x0E); // Yellow logs
+                vga.putString(0, screen_row, log_line[0..display_len], @intFromEnum(Color.Yellow));
             }
         }
     }
@@ -139,15 +139,15 @@ pub fn renderLogsScreen() void {
     var info_buffer: [50]u8 = undefined;
     if (log_count > visible_lines) {
         if (std.fmt.bufPrint(info_buffer[0..], "Logs [{d}-{d}/{d}] - Total: {d}/50", .{ log_scroll_offset + 1, @min(log_scroll_offset + visible_lines, log_count), log_count, log_count })) |result| {
-            vga.putString(2, vga.VGA_HEIGHT - 1, result, 0x08); // Dark gray
+            vga.putString(2, vga.VGA_HEIGHT - 1, result, @intFromEnum(Color.DarkGray));
         } else |_| {
-            vga.putString(2, vga.VGA_HEIGHT - 1, "Scroll info error", 0x08);
+            vga.putString(2, vga.VGA_HEIGHT - 1, "Scroll info error", @intFromEnum(Color.DarkGray));
         }
     } else {
         if (std.fmt.bufPrint(info_buffer[0..], "Total logs: {d}/50", .{log_count})) |result| {
-            vga.putString(2, vga.VGA_HEIGHT - 1, result, 0x08); // Dark gray
+            vga.putString(2, vga.VGA_HEIGHT - 1, result, @intFromEnum(Color.DarkGray));
         } else |_| {
-            vga.putString(2, vga.VGA_HEIGHT - 1, "Log count error", 0x08);
+            vga.putString(2, vga.VGA_HEIGHT - 1, "Log count error", @intFromEnum(Color.DarkGray));
         }
     }
 }

@@ -22,7 +22,7 @@ pub const SpecialKey = enum {
 
 const scancode_to_char = [_]u8{
     0, 0, '1', '2', '3', '4', '5', '6', // 0x00-0x07
-    '7', '8', '9', '0', '-', '=', 0x08, '\t', // 0x08-0x0F (0x08 = backspace)
+    '7', '8', '9', '0', '-', '=', 0x08, '\t', // 0x08-0x0F (0x0E = backspace, 0x0F = tab)
     'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', // 0x10-0x17
     'o', 'p', '[', ']', '\n', 0, 'a', 's', // 0x18-0x1F (0x1C = enter, 0x1D = ctrl)
     'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', // 0x20-0x27

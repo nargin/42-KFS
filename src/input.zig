@@ -3,6 +3,8 @@ const vga = @import("./vga.zig");
 const screens = @import("./screens.zig");
 const ScreenType = screens.ScreenType;
 const SpecialKey = @import("./keyboard/keyboard.zig").SpecialKey;
+const Key = @import("./keyboard/keys.zig").Key;
+const ASCII = @import("./ascii.zig").ASCII;
 
 // Input state
 pub var main_input_buffer: [256]u8 = [_]u8{0} ** 256;
@@ -18,34 +20,40 @@ pub var output_row: *usize = &main_output_row;
 
 pub const PROMPT: []const u8 = "> Input: ";
 
+// Display constants
+const INPUT_ROW = 23;
+const SEPARATOR_ROW = 22;
+const MAX_INPUT_BUFFER_SIZE = 255;
+const MAX_MENU_SEARCH_SIZE = 63;
+const MENU_SEARCH_DISPLAY_WIDTH = 60;
+
 pub fn drawInput(current_screen: ScreenType) void {
     // Only draw input for Main screen
     if (current_screen != .Main) return;
 
-    // Input area
-    vga.putString(0, 22, "=" ** vga.VGA_WIDTH, 0x1E); // Yellow on blue
-    vga.putString(0, 23, PROMPT, 0x0B); // Cyan on black
+    // Draw input separator line
+    vga.putString(0, SEPARATOR_ROW, "=" ** vga.VGA_WIDTH, 0x1E); // Yellow on blue
 
-    // Clear input line from position 9 onwards
+    // Draw input prompt
+    vga.putString(0, INPUT_ROW, PROMPT, 0x0B); // Cyan on black
+
+    // Clear input line after prompt
     var col: usize = PROMPT.len;
     while (col < vga.VGA_WIDTH) : (col += 1) {
-        vga.putChar(col, 23, ' ', 0x07); // Clear with default colors
+        vga.putChar(col, INPUT_ROW, ' ', 0x07); // Clear with default colors
     }
 
-    // Display current input (limit to screen width)
+    // Display current input text (limit to available screen width)
     if (input_length.* > 0) {
-        const max_display_chars = vga.VGA_WIDTH - PROMPT.len; // 71 characters max
-        const display_len = @min(input_length.*, max_display_chars);
+        const available_width = vga.VGA_WIDTH - PROMPT.len;
+        const display_len = @min(input_length.*, available_width);
         const display_text = input_buffer.*[0..display_len];
-        vga.putString(PROMPT.len, 23, display_text, 0x0F); // White on black
+        vga.putString(PROMPT.len, INPUT_ROW, display_text, 0x0F); // White on black
     }
 
-    // Update hardware cursor position for Main screen (if visible)
-
-    if (current_screen == .Main) {
-        const cursor_pos = @min(PROMPT.len + input_cursor.*, vga.VGA_WIDTH - 1);
-        vga.setCursorPosition(cursor_pos, 23);
-    }
+    // Position hardware cursor at input position
+    const cursor_pos = @min(PROMPT.len + input_cursor.*, vga.VGA_WIDTH - 1);
+    vga.setCursorPosition(cursor_pos, INPUT_ROW);
 }
 
 pub fn processInput(current_screen: ScreenType) void {
@@ -95,7 +103,7 @@ pub fn processInput(current_screen: ScreenType) void {
 
 pub fn handleChar(char: u8) void {
     // Handle ESC key to close Windows menu
-    if (char == 27) { // ESC
+    if (char == ASCII.ESCAPE) {
         if (screens.menu_visible) {
             screens.hideWindowsMenu();
             return;
@@ -109,7 +117,7 @@ pub fn handleChar(char: u8) void {
     }
 
     switch (char) {
-        0x08 => { // Backspace
+        ASCII.BACKSPACE => {
             if (input_cursor.* > 0) {
                 // Move cursor left and delete character
                 input_cursor.* -= 1;
@@ -121,24 +129,15 @@ pub fn handleChar(char: u8) void {
                 input_buffer.*[input_length.*] = 0;
             }
         },
-        '\n' => { // Enter
+        ASCII.ENTER => {
             // processInput() will be called from main loop
         },
         else => {
-            const max_input_chars = vga.VGA_WIDTH - 9; // 71 characters max to fit on screen
-            if (char >= 32 and char <= 126 and input_length.* < @min(255, max_input_chars)) {
-                // Shift characters right to make room for new character
-                if (input_cursor.* < input_length.*) {
-                    var i = input_length.*;
-                    while (i > input_cursor.*) {
-                        input_buffer.*[i] = input_buffer.*[i - 1];
-                        i -= 1;
-                    }
-                }
-                // Insert new character at cursor position
-                input_buffer.*[input_cursor.*] = char;
-                input_length.* += 1;
-                input_cursor.* += 1;
+            const available_input_chars = vga.VGA_WIDTH - PROMPT.len;
+            const max_chars = @min(MAX_INPUT_BUFFER_SIZE, available_input_chars);
+
+            if (ASCII.isPrintable(char) and input_length.* < max_chars) {
+                insertCharAtCursor(char);
             }
         },
     }
@@ -146,7 +145,7 @@ pub fn handleChar(char: u8) void {
 
 pub fn handleMenuChar(char: u8) void {
     switch (char) {
-        0x08 => { // Backspace in menu search
+        ASCII.BACKSPACE => { // Backspace in menu search
             if (screens.menu_search_cursor > 0) {
                 screens.menu_search_cursor -= 1;
                 // Shift characters left
@@ -157,25 +156,14 @@ pub fn handleMenuChar(char: u8) void {
                 screens.menu_search_buffer[screens.menu_search_length] = 0;
             }
         },
-        '\n' => { // Enter in menu - could select item or search
-            // For now, just close menu
+        ASCII.ENTER => {
+            // For now, just close menu when Enter is pressed
             screens.hideWindowsMenu();
         },
         else => {
-            const max_search_chars = 60;
-            if (char >= 32 and char <= 126 and screens.menu_search_length < @min(63, max_search_chars)) {
-                // Shift characters right to make room for new character
-                if (screens.menu_search_cursor < screens.menu_search_length) {
-                    var i = screens.menu_search_length;
-                    while (i > screens.menu_search_cursor) {
-                        screens.menu_search_buffer[i] = screens.menu_search_buffer[i - 1];
-                        i -= 1;
-                    }
-                }
-                // Insert new character at cursor position
-                screens.menu_search_buffer[screens.menu_search_cursor] = char;
-                screens.menu_search_length += 1;
-                screens.menu_search_cursor += 1;
+            const max_chars = @min(MAX_MENU_SEARCH_SIZE, MENU_SEARCH_DISPLAY_WIDTH);
+            if (ASCII.isPrintable(char) and screens.menu_search_length < max_chars) {
+                insertCharInMenuSearch(char);
             }
         },
     }
@@ -237,6 +225,38 @@ pub fn handleArrowKey(arrow_key: SpecialKey, current_screen: ScreenType) void {
     }
 }
 
+// Helper function to insert character at cursor position in main input
+fn insertCharAtCursor(char: u8) void {
+    // Shift characters right to make room for new character
+    if (input_cursor.* < input_length.*) {
+        var i = input_length.*;
+        while (i > input_cursor.*) {
+            input_buffer.*[i] = input_buffer.*[i - 1];
+            i -= 1;
+        }
+    }
+    // Insert new character at cursor position
+    input_buffer.*[input_cursor.*] = char;
+    input_length.* += 1;
+    input_cursor.* += 1;
+}
+
+// Helper function to insert character in menu search
+fn insertCharInMenuSearch(char: u8) void {
+    // Shift characters right to make room for new character
+    if (screens.menu_search_cursor < screens.menu_search_length) {
+        var i = screens.menu_search_length;
+        while (i > screens.menu_search_cursor) {
+            screens.menu_search_buffer[i] = screens.menu_search_buffer[i - 1];
+            i -= 1;
+        }
+    }
+    // Insert new character at cursor position
+    screens.menu_search_buffer[screens.menu_search_cursor] = char;
+    screens.menu_search_length += 1;
+    screens.menu_search_cursor += 1;
+}
+
 pub fn switchToScreen(screen: ScreenType) void {
     // Update pointers to correct screen data
     input_buffer = &main_input_buffer;
@@ -247,7 +267,7 @@ pub fn switchToScreen(screen: ScreenType) void {
     // Handle cursor visibility based on current screen
     if (screen == .Main) {
         vga.showCursor();
-        vga.setCursorPosition(9 + input_cursor.*, 23);
+        vga.setCursorPosition(PROMPT.len + input_cursor.*, INPUT_ROW);
     } else {
         vga.hideCursor();
     }
