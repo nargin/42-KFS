@@ -8,7 +8,7 @@ const input = @import("./input.zig");
 
 const ALIGN = 1 << 0;
 const MEMINFO = 1 << 1;
-const MAGIC = 0x1BADB002;
+const MAGIC = 0x1BADB002; // Multiboot magic number
 const FLAGS = ALIGN | MEMINFO;
 
 const MultibootHeader = packed struct {
@@ -78,11 +78,14 @@ fn kmain() callconv(.C) void {
                     @intFromEnum(keys.F3) => switchToScreen(.Logs),
                     @intFromEnum(keys.F4) => switchToScreen(.About),
                     @intFromEnum(keys.Tab) => {
-                        // Toggle menu visibility
-                        screens.menu_visible = !screens.menu_visible;
-                        screens.renderCurrentScreen(current_screen);
-                        input.drawInput(current_screen);
-                        screens.drawWindowsMenu();
+                        // Cycle through screens
+                        const next_screen: screens.ScreenType = switch (current_screen) {
+                            .Main => .Status,
+                            .Status => .Logs,
+                            .Logs => .About,
+                            .About => .Main,
+                        };
+                        switchToScreen(next_screen);
                     },
                     else => {
                         // Handle special keys

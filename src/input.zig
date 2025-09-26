@@ -209,9 +209,7 @@ pub fn handleArrowKey(arrow_key: SpecialKey, current_screen: ScreenType) void {
                         screens.main_scroll_offset -= 1;
                     }
                 },
-                .WindowsKey => {
-                    // Handled in main loop
-                },
+                else => {},
             }
         },
         .Logs => {
@@ -230,12 +228,7 @@ pub fn handleArrowKey(arrow_key: SpecialKey, current_screen: ScreenType) void {
                         screens.log_scroll_offset -= 1;
                     }
                 },
-                .ArrowLeft, .ArrowRight => {
-                    // No horizontal scrolling in logs
-                },
-                .WindowsKey => {
-                    // Handled in main loop
-                },
+                else => {},
             }
         },
         .Status, .About => {
@@ -246,21 +239,10 @@ pub fn handleArrowKey(arrow_key: SpecialKey, current_screen: ScreenType) void {
 
 pub fn switchToScreen(screen: ScreenType) void {
     // Update pointers to correct screen data
-    switch (screen) {
-        .Main => {
-            input_buffer = &main_input_buffer;
-            input_length = &main_input_length;
-            input_cursor = &main_input_cursor;
-            output_row = &main_output_row;
-        },
-        else => {
-            // Other screens don't have input for now
-            input_buffer = &main_input_buffer; // Fallback
-            input_length = &main_input_length;
-            input_cursor = &main_input_cursor;
-            output_row = &main_output_row;
-        },
-    }
+    input_buffer = &main_input_buffer;
+    input_length = &main_input_length;
+    input_cursor = &main_input_cursor;
+    output_row = &main_output_row;
 
     // Handle cursor visibility based on current screen
     if (screen == .Main) {
