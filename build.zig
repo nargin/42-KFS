@@ -24,13 +24,15 @@ pub fn build(b: *std.Build) void {
 
     const kernel = b.addExecutable(.{
         .name = "kernel.elf",
-        .root_source_file = b.path("src/main.zig"),
-        .target = b.resolveTargetQuery(target_query),
-        .optimize = optimize,
-        .code_model = .kernel,
-        .strip = true,
-        .single_threaded = true,
-        .omit_frame_pointer = true,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("kernel/main.zig"),
+            .target = b.resolveTargetQuery(target_query),
+            .optimize = optimize,
+            .code_model = .kernel,
+            .strip = true,
+            .single_threaded = true,
+            .omit_frame_pointer = true,
+        }),
     });
 
     kernel.setLinkerScript(b.path("boot/linker.ld"));
