@@ -2,9 +2,9 @@ const std = @import("std");
 const vga = @import("../drivers/vga.zig");
 const screens = @import("./screens.zig");
 const ScreenType = screens.ScreenType;
-const SpecialKey = @import("../utils/types.zig").SpecialKey;
-const Key = @import("../utils/types.zig").Key;
-const ASCII = @import("../utils/types.zig").ASCII;
+const SpecialKey = @import("../common/types.zig").SpecialKey;
+const Key = @import("../common/types.zig").Key;
+const ASCII = @import("../common/types.zig").ASCII;
 
 // Input state
 pub var main_input_buffer: [256]u8 = [_]u8{0} ** 256;

@@ -2,7 +2,8 @@ const std = @import("std");
 const outb = @import("../arch/x86/io.zig").outb;
 
 // VGA constants
-pub const VGA_BUFFER = @as([*]volatile u16, @ptrFromInt(0xB8000));
+const VGA_TEXT_BUFFER_ADDRESS = 0xB8000;
+pub const VGA_BUFFER = @as([*]volatile u16, @ptrFromInt(VGA_TEXT_BUFFER_ADDRESS));
 pub const VGA_WIDTH = 80;
 pub const VGA_HEIGHT = 25;
 
@@ -20,17 +21,17 @@ pub fn putChar(x: usize, y: usize, char: u8, color: u8) void {
     VGA_BUFFER[index] = @as(u16, char) | (@as(u16, color) << 8);
 }
 
-/// Only the Y coordinate is specified, X is calculated to center the text
-pub fn putStringCentered(y: usize, text: []const u8, color: u8) void {
-    const x = (VGA_WIDTH - text.len) / 2;
-    putString(x, y, text, color);
-}
-
 pub fn putString(x: usize, y: usize, text: []const u8, color: u8) void {
     for (text, 0..) |char, i| {
         if (x + i >= VGA_WIDTH) break;
         putChar(x + i, y, char, color);
     }
+}
+
+/// Only the Y coordinate is specified, X is calculated to center the text
+pub fn putStringCentered(y: usize, text: []const u8, color: u8) void {
+    const x = (VGA_WIDTH - text.len) / 2;
+    putString(x, y, text, color);
 }
 
 // VGA cursor control functions

@@ -1,6 +1,6 @@
 const std = @import("std");
 const vga = @import("../drivers/vga.zig");
-const Color = @import("../utils/types.zig").Color;
+const Color = @import("../common/types.zig").Color;
 
 // Screen management types
 pub const ScreenType = enum { Main, Status, Logs, About };
@@ -32,12 +32,8 @@ fn indicatorColor(current: ScreenType, indicator: ScreenType) u8 {
 
 pub fn drawHeader(current_screen: ScreenType) void {
     // Purple header background (rows 0-4, more compact)
-    var row: usize = 0;
-    while (row < 5) : (row += 1) {
-        var col: usize = 0;
-        while (col < vga.VGA_WIDTH) : (col += 1) {
-            vga.putChar(col, row, ' ', 0x5F); // White on purple
-        }
+    for (0..5) |row| {
+        vga.putStringCentered(row, " " ** vga.VGA_WIDTH, Color.makeColor(Color.White, Color.Magenta)); // White on purple
     }
 
     // Header content - compact

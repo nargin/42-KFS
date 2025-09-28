@@ -1,7 +1,7 @@
 const std = @import("std");
-const Key = @import("../utils/types.zig").Key;
+const Key = @import("../common/types.zig").Key;
 const inb = @import("../arch/x86/io.zig").inb;
-const SpecialKey = @import("../utils/types.zig").SpecialKey;
+const SpecialKey = @import("../common/types.zig").SpecialKey;
 
 const KEYBOARD_DATA_PORT: u16 = 0x60;
 const KEYBOARD_STATUS_PORT: u16 = 0x64;
