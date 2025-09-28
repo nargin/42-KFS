@@ -5,6 +5,11 @@ const Color = @import("common/types.zig").Color;
 const vga = @import("drivers/vga.zig");
 const screens = @import("ui/screens.zig");
 const input = @import("ui/input.zig");
+const panic = @import("panic.zig").panic;
+
+const halt = @import("panic.zig").halt;
+
+const init = @import("init.zig");
 
 const ALIGN = 1 << 0;
 const MEMINFO = 1 << 1;
@@ -54,15 +59,13 @@ export fn _start() noreturn {
 fn kmain() void {
     var keyboard = Keyboard.init();
 
-    // Add initial logs
-    screens.addLog("Kernel started with VeigarOS v1.0");
-    screens.addLog("VGA display initialized");
-    screens.addLog("Keyboard driver loaded");
-    screens.addLog("Multi-screen system active");
-    screens.addLog("Press F1-F4 to switch screens");
-
     // Initialize display
     vga.clearScreen(0x07); // Light gray on black
+
+    // Initialize kernel subsystems
+    init.kernel_init();
+
+    halt();
 
     // Set up hardware cursor
     vga.showCursor();
@@ -70,6 +73,13 @@ fn kmain() void {
 
     screens.renderCurrentScreen(current_screen); // This will draw header and main screen
     input.drawInput(current_screen);
+
+    // Add initial logs
+    screens.addLog("Kernel started with VeigarOS v1.0");
+    screens.addLog("VGA display initialized");
+    screens.addLog("Keyboard driver loaded");
+    screens.addLog("Multi-screen system active");
+    screens.addLog("Press F1-F4 to switch screens");
 
     // Main loop
     while (true) {
