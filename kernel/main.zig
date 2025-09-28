@@ -3,8 +3,8 @@ const Keyboard = @import("drivers/keyboard.zig").Keyboard;
 const keys = @import("common/types.zig").Key;
 const Color = @import("common/types.zig").Color;
 const vga = @import("drivers/vga.zig");
-const screens = @import("lib/screens.zig");
-const input = @import("lib/input.zig");
+const screens = @import("ui/screens.zig");
+const input = @import("ui/input.zig");
 
 const ALIGN = 1 << 0;
 const MEMINFO = 1 << 1;
