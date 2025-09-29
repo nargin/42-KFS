@@ -31,7 +31,7 @@ pub const Keyboard = struct {
     windows_pressed: bool = false,
     extended_key: bool = false,
 
-    pub fn init() Keyboard {
+    pub fn init() !Keyboard {
         return Keyboard{};
     }
 

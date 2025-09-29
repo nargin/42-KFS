@@ -22,6 +22,8 @@ pub fn putChar(x: usize, y: usize, char: u8, color: u8) void {
 }
 
 pub fn putString(x: usize, y: usize, text: []const u8, color: u8) void {
+    if (y >= VGA_HEIGHT) return;
+
     for (text, 0..) |char, i| {
         if (x + i >= VGA_WIDTH) break;
         putChar(x + i, y, char, color);

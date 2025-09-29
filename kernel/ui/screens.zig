@@ -1,6 +1,7 @@
 const std = @import("std");
 const vga = @import("../drivers/vga.zig");
 const Color = @import("../common/types.zig").Color;
+const input = @import("input.zig");
 
 // Screen management types
 pub const ScreenType = enum { Main, Status, Logs, About };
@@ -23,6 +24,16 @@ pub var menu_search_buffer: [64]u8 = [_]u8{0} ** 64;
 pub var menu_search_length: usize = 0;
 pub var menu_search_cursor: usize = 0;
 
+// Screen management
+var current_screen: ScreenType = .Main;
+
+fn switchToScreen(screen: ScreenType) void {
+    current_screen = screen;
+    input.switchToScreen(screen);
+    renderCurrentScreen(current_screen);
+    input.drawInput(current_screen);
+}
+
 fn indicatorColor(current: ScreenType, indicator: ScreenType) u8 {
     return if (current == indicator)
         Color.makeColor(Color.Black, Color.Yellow)
@@ -30,7 +41,7 @@ fn indicatorColor(current: ScreenType, indicator: ScreenType) u8 {
         Color.makeColor(Color.White, Color.Magenta);
 }
 
-pub fn drawHeader(current_screen: ScreenType) void {
+pub fn drawHeader() void {
     // Purple header background (rows 0-4, more compact)
     for (0..5) |row| {
         vga.putStringCentered(row, " " ** vga.VGA_WIDTH, Color.makeColor(Color.White, Color.Magenta)); // White on purple
@@ -157,7 +168,7 @@ pub fn renderAboutScreen() void {
     vga.putStringCentered(20, "Press F1-F4 to navigate", @intFromEnum(Color.Cyan));
 }
 
-pub fn renderCurrentScreen(current_screen: ScreenType) void {
+pub fn renderCurrentScreen() void {
     // Clear screen (keep header)
     var row: usize = 5;
     while (row < vga.VGA_HEIGHT) : (row += 1) {
@@ -276,4 +287,19 @@ pub fn drawWindowsMenu() void {
     // Position cursor in search box
     const cursor_pos = @min(search_start + menu_search_cursor, search_start + search_width - 1);
     vga.setCursorPosition(cursor_pos, start_row + 2);
+}
+
+pub fn setup_ui() void {
+    vga.showCursor();
+    vga.setCursorPosition(input.PROMPT.len, 23); // Position at input area initially
+
+    renderCurrentScreen(); // This will draw header and main screen
+    input.drawInput(current_screen);
+
+    // Add initial logs
+    addLog("Kernel started with VeigarOS v1.0");
+    addLog("VGA display initialized");
+    addLog("Keyboard driver loaded");
+    addLog("Multi-screen system active");
+    addLog("Press F1-F4 to switch screens");
 }
