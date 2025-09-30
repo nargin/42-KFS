@@ -54,10 +54,3 @@
 
   This is a learning project for understanding low-level system programming and kernel development
   concepts.
-
-  This README is:
-  - **Short and clear** - gets to the point quickly
-  - **Practical** - focuses on how to actually use it
-  - **Shows progress** - indicates what's done and what's coming
-  - **Includes dependencies upfront** - as requested
-  - **Has the WIP warning** - clearly marked as work in progress
