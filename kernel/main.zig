@@ -5,7 +5,7 @@ const Color = @import("common/types.zig").Color;
 const vga = @import("drivers/vga.zig");
 
 const screen = @import("ui/screens.zig");
-const ScreenType = screen.ScreenType;
+const UIContext = @import("ui/context.zig").UIContext;
 
 const panic = @import("panic.zig").panic;
 const input = @import("ui/input.zig");
@@ -47,21 +47,26 @@ export fn _start() noreturn {
 }
 
 var keyboard: Keyboard = undefined;
+var ui_ctx: UIContext = undefined;
 
 fn kmain() void {
     // Initialize kernel subsystems
     init.kernel_init();
 
+    // Initialize UI context
+    ui_ctx = UIContext.init();
+    ui_ctx.initViews();
+
     // Initialize keyboard at runtime
     keyboard = Keyboard.init() catch {
         @panic("Failed to initialize keyboard");
     };
-    screen.setup_ui();
+    screen.setup_ui(&ui_ctx);
 
     // Main loop - simple polling for now
     while (true) {
         if (keyboard.readScancode()) |key_event| {
-            input.handleKeyEvent(key_event, screen.current_screen);
+            input.handleKeyEvent(&ui_ctx, key_event);
         }
     }
 }

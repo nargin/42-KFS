@@ -1,22 +1,11 @@
 const std = @import("std");
 const vga = @import("../drivers/vga.zig");
 const screens = @import("./screens.zig");
-const ScreenType = screens.ScreenType;
+const UIContext = @import("context.zig").UIContext;
+const ScreenType = @import("context.zig").ScreenType;
 const SpecialKey = @import("../common/types.zig").SpecialKey;
 const Key = @import("../common/types.zig").Key;
 const ASCII = @import("../common/types.zig").ASCII;
-
-// Input state
-pub var main_input_buffer: [256]u8 = [_]u8{0} ** 256;
-pub var main_input_length: usize = 0;
-pub var main_input_cursor: usize = 0;
-pub var main_output_row: usize = 12;
-
-// Current active pointers (point to current screen's data)
-pub var input_buffer: *[256]u8 = &main_input_buffer;
-pub var input_length: *usize = &main_input_length;
-pub var input_cursor: *usize = &main_input_cursor;
-pub var output_row: *usize = &main_output_row;
 
 pub const PROMPT: []const u8 = "> Input: ";
 
@@ -27,9 +16,9 @@ const MAX_INPUT_BUFFER_SIZE = 255;
 const MAX_MENU_SEARCH_SIZE = 63;
 const MENU_SEARCH_DISPLAY_WIDTH = 60;
 
-pub fn drawInput(current_screen: ScreenType) void {
+pub fn drawInput(ctx: *UIContext) void {
     // Only draw input for Main screen
-    if (current_screen != .Main) return;
+    if (ctx.current_screen != .Main) return;
 
     // Draw input separator line
     vga.putString(0, SEPARATOR_ROW, "=" ** vga.VGA_WIDTH, 0x1E); // Yellow on blue
@@ -44,90 +33,65 @@ pub fn drawInput(current_screen: ScreenType) void {
     }
 
     // Display current input text (limit to available screen width)
-    if (input_length.* > 0) {
+    if (ctx.main_input.length > 0) {
         const available_width = vga.VGA_WIDTH - PROMPT.len;
-        const display_len = @min(input_length.*, available_width);
-        const display_text = input_buffer.*[0..display_len];
+        const display_len = @min(ctx.main_input.length, available_width);
+        const display_text = ctx.main_input.data[0..display_len];
         vga.putString(PROMPT.len, INPUT_ROW, display_text, 0x0F); // White on black
     }
 
     // Position hardware cursor at input position
-    const cursor_pos = @min(PROMPT.len + input_cursor.*, vga.VGA_WIDTH - 1);
+    const cursor_pos = @min(PROMPT.len + ctx.main_input.cursor, vga.VGA_WIDTH - 1);
     vga.setCursorPosition(cursor_pos, INPUT_ROW);
 }
 
-pub fn processInput(current_screen: ScreenType) void {
-    if (input_length.* == 0) return;
+pub fn processInput(ctx: *UIContext) void {
+    if (ctx.main_input.length == 0) return;
 
     // Create a log message with the user input
     var log_buffer: [80]u8 = [_]u8{0} ** 80;
     const log_prefix = "USER: ";
     @memcpy(log_buffer[0..log_prefix.len], log_prefix);
-    const copy_len = @min(input_length.*, 80 - log_prefix.len - 1);
-    @memcpy(log_buffer[log_prefix.len .. log_prefix.len + copy_len], input_buffer.*[0..copy_len]);
-    screens.addLog(log_buffer[0 .. log_prefix.len + copy_len]);
+    const copy_len = @min(ctx.main_input.length, 80 - log_prefix.len - 1);
+    @memcpy(log_buffer[log_prefix.len .. log_prefix.len + copy_len], ctx.main_input.data[0..copy_len]);
+    screens.addLog(ctx, log_buffer[0 .. log_prefix.len + copy_len]);
 
     // Save to persistent output lines for main screen
-    if (current_screen == .Main) {
-        if (screens.main_output_count < 25) {
-            const prefix = "> ";
-            @memcpy(screens.main_output_lines[screens.main_output_count][0..prefix.len], prefix);
-            @memcpy(screens.main_output_lines[screens.main_output_count][prefix.len .. prefix.len + input_length.*], input_buffer.*[0..input_length.*]);
-            screens.main_output_count += 1;
-        } else {
-            // Scroll main output up when buffer is full
-            for (1..25) |i| {
-                screens.main_output_lines[i - 1] = screens.main_output_lines[i];
-            }
-            const prefix = "> ";
-            @memcpy(screens.main_output_lines[24][0..prefix.len], prefix);
-            @memcpy(screens.main_output_lines[24][prefix.len .. prefix.len + input_length.*], input_buffer.*[0..input_length.*]);
-        }
-
-        // Reset scroll offset to show newest output
-        screens.main_scroll_offset = 0;
+    if (ctx.current_screen == .Main) {
+        var output_line: [80]u8 = [_]u8{0} ** 80;
+        const prefix = "> ";
+        @memcpy(output_line[0..prefix.len], prefix);
+        @memcpy(output_line[prefix.len .. prefix.len + ctx.main_input.length], ctx.main_input.data[0..ctx.main_input.length]);
+        ctx.main_output.addLine(&output_line);
     }
 
     // Clear input buffer
-    input_length.* = 0;
-    input_cursor.* = 0; // Reset cursor position
-    for (0..input_buffer.*.len) |i| {
-        input_buffer.*[i] = 0;
-    }
+    ctx.main_input.clear();
 
     // Re-render to show the new output
-    if (current_screen == .Main) {
-        screens.renderMainScreen();
+    if (ctx.current_screen == .Main) {
+        screens.renderMainScreen(ctx);
     }
 }
 
-pub fn handleChar(char: u8) void {
+pub fn handleChar(ctx: *UIContext, char: u8) void {
     // Handle ESC key to close Windows menu
     if (char == ASCII.ESCAPE) {
-        if (screens.menu_visible) {
-            screens.hideWindowsMenu();
+        if (ctx.menu_visible) {
+            screens.hideWindowsMenu(ctx);
             return;
         }
     }
 
     // If Windows menu is visible, handle menu input
-    if (screens.menu_visible) {
-        handleMenuChar(char);
+    if (ctx.menu_visible) {
+        handleMenuChar(ctx, char);
         return;
     }
 
     switch (char) {
         ASCII.BACKSPACE => {
-            if (input_cursor.* > 0) {
-                // Move cursor left and delete character
-                input_cursor.* -= 1;
-                // Shift characters left
-                for (input_cursor.*..input_length.* - 1) |i| {
-                    input_buffer.*[i] = input_buffer.*[i + 1];
-                }
-                input_length.* -= 1;
-                input_buffer.*[input_length.*] = 0;
-            }
+            ctx.main_input.deleteChar();
         },
         ASCII.ENTER => {
             // processInput() will be called from main loop
@@ -136,66 +100,49 @@ pub fn handleChar(char: u8) void {
             const available_input_chars = vga.VGA_WIDTH - PROMPT.len;
             const max_chars = @min(MAX_INPUT_BUFFER_SIZE, available_input_chars);
 
-            if (ASCII.isPrintable(char) and input_length.* < max_chars) {
-                insertCharAtCursor(char);
+            if (ASCII.isPrintable(char)) {
+                ctx.main_input.insertChar(char, max_chars);
             }
         },
     }
 }
 
-pub fn handleMenuChar(char: u8) void {
+pub fn handleMenuChar(ctx: *UIContext, char: u8) void {
     switch (char) {
-        ASCII.BACKSPACE => { // Backspace in menu search
-            if (screens.menu_search_cursor > 0) {
-                screens.menu_search_cursor -= 1;
-                // Shift characters left
-                for (screens.menu_search_cursor..screens.menu_search_length - 1) |i| {
-                    screens.menu_search_buffer[i] = screens.menu_search_buffer[i + 1];
-                }
-                screens.menu_search_length -= 1;
-                screens.menu_search_buffer[screens.menu_search_length] = 0;
-            }
+        ASCII.BACKSPACE => {
+            ctx.menu_search.deleteChar();
         },
         ASCII.ENTER => {
-            // For now, just close menu when Enter is pressed
-            screens.hideWindowsMenu();
+            screens.hideWindowsMenu(ctx);
         },
         else => {
             const max_chars = @min(MAX_MENU_SEARCH_SIZE, MENU_SEARCH_DISPLAY_WIDTH);
-            if (ASCII.isPrintable(char) and screens.menu_search_length < max_chars) {
-                insertCharInMenuSearch(char);
+            if (ASCII.isPrintable(char)) {
+                ctx.menu_search.insertChar(char, max_chars);
             }
         },
     }
 }
 
-pub fn handleArrowKey(arrow_key: SpecialKey, current_screen: ScreenType) void {
-    switch (current_screen) {
+pub fn handleArrowKey(ctx: *UIContext, arrow_key: SpecialKey) void {
+    switch (ctx.current_screen) {
         .Main => {
             switch (arrow_key) {
                 .ArrowLeft => {
-                    if (input_cursor.* > 0) {
-                        input_cursor.* -= 1;
+                    if (ctx.main_input.cursor > 0) {
+                        ctx.main_input.cursor -= 1;
                     }
                 },
                 .ArrowRight => {
-                    if (input_cursor.* < input_length.*) {
-                        input_cursor.* += 1;
+                    if (ctx.main_input.cursor < ctx.main_input.length) {
+                        ctx.main_input.cursor += 1;
                     }
                 },
                 .ArrowUp => {
-                    // Scroll up in main output
-                    const visible_lines = 11;
-                    const max_scroll = if (screens.main_output_count > visible_lines) screens.main_output_count - visible_lines else 0;
-                    if (screens.main_scroll_offset < max_scroll) {
-                        screens.main_scroll_offset += 1;
-                    }
+                    ctx.main_output.scrollUp(11);
                 },
                 .ArrowDown => {
-                    // Scroll down in main output
-                    if (screens.main_scroll_offset > 0) {
-                        screens.main_scroll_offset -= 1;
-                    }
+                    ctx.main_output.scrollDown();
                 },
                 else => {},
             }
@@ -203,18 +150,10 @@ pub fn handleArrowKey(arrow_key: SpecialKey, current_screen: ScreenType) void {
         .Logs => {
             switch (arrow_key) {
                 .ArrowUp => {
-                    // Scroll up in logs
-                    const visible_lines = 13;
-                    const max_scroll = if (screens.log_count > visible_lines) screens.log_count - visible_lines else 0;
-                    if (screens.log_scroll_offset < max_scroll) {
-                        screens.log_scroll_offset += 1;
-                    }
+                    ctx.logs.scrollUp(13);
                 },
                 .ArrowDown => {
-                    // Scroll down in logs
-                    if (screens.log_scroll_offset > 0) {
-                        screens.log_scroll_offset -= 1;
-                    }
+                    ctx.logs.scrollDown();
                 },
                 else => {},
             }
@@ -225,56 +164,19 @@ pub fn handleArrowKey(arrow_key: SpecialKey, current_screen: ScreenType) void {
     }
 }
 
-// Helper function to insert character at cursor position in main input
-fn insertCharAtCursor(char: u8) void {
-    // Shift characters right to make room for new character
-    if (input_cursor.* < input_length.*) {
-        var i = input_length.*;
-        while (i > input_cursor.*) {
-            input_buffer.*[i] = input_buffer.*[i - 1];
-            i -= 1;
-        }
-    }
-    // Insert new character at cursor position
-    input_buffer.*[input_cursor.*] = char;
-    input_length.* += 1;
-    input_cursor.* += 1;
-}
-
-// Helper function to insert character in menu search
-fn insertCharInMenuSearch(char: u8) void {
-    // Shift characters right to make room for new character
-    if (screens.menu_search_cursor < screens.menu_search_length) {
-        var i = screens.menu_search_length;
-        while (i > screens.menu_search_cursor) {
-            screens.menu_search_buffer[i] = screens.menu_search_buffer[i - 1];
-            i -= 1;
-        }
-    }
-    // Insert new character at cursor position
-    screens.menu_search_buffer[screens.menu_search_cursor] = char;
-    screens.menu_search_length += 1;
-    screens.menu_search_cursor += 1;
-}
-
-pub fn switchToScreen(screen: ScreenType) void {
-    // Update pointers to correct screen data
-    input_buffer = &main_input_buffer;
-    input_length = &main_input_length;
-    input_cursor = &main_input_cursor;
-    output_row = &main_output_row;
-
+pub fn switchToScreen(ctx: *UIContext, screen: ScreenType) void {
+    _ = screen;
     // Handle cursor visibility based on current screen
-    if (screen == .Main) {
+    if (ctx.current_screen == .Main) {
         vga.showCursor();
-        vga.setCursorPosition(PROMPT.len + input_cursor.*, INPUT_ROW);
+        vga.setCursorPosition(PROMPT.len + ctx.main_input.cursor, INPUT_ROW);
     } else {
         vga.hideCursor();
     }
 }
 
 // Central keyboard event dispatcher
-pub fn handleKeyEvent(key_event: anytype, current_screen: ScreenType) void {
+pub fn handleKeyEvent(ctx: *UIContext, key_event: anytype) void {
     if (!key_event.pressed) return;
 
     const key_code = key_event.scancode & 0x7F;
@@ -282,30 +184,30 @@ pub fn handleKeyEvent(key_event: anytype, current_screen: ScreenType) void {
     // Handle F-keys for screen switching
     switch (key_code) {
         @intFromEnum(Key.F1) => {
-            screens.switchToScreen(.Main);
+            screens.switchToScreen(ctx, .Main);
             return;
         },
         @intFromEnum(Key.F2) => {
-            screens.switchToScreen(.Status);
+            screens.switchToScreen(ctx, .Status);
             return;
         },
         @intFromEnum(Key.F3) => {
-            screens.switchToScreen(.Logs);
+            screens.switchToScreen(ctx, .Logs);
             return;
         },
         @intFromEnum(Key.F4) => {
-            screens.switchToScreen(.About);
+            screens.switchToScreen(ctx, .About);
             return;
         },
         @intFromEnum(Key.Tab) => {
             // Cycle through screens
-            const next_screen: ScreenType = switch (current_screen) {
+            const next_screen: ScreenType = switch (ctx.current_screen) {
                 .Main => .Status,
                 .Status => .Logs,
                 .Logs => .About,
                 .About => .Main,
             };
-            screens.switchToScreen(next_screen);
+            screens.switchToScreen(ctx, next_screen);
             return;
         },
         else => {},
@@ -315,15 +217,15 @@ pub fn handleKeyEvent(key_event: anytype, current_screen: ScreenType) void {
     if (key_event.special) |special_key| {
         switch (special_key) {
             .WindowsKey => {
-                screens.showWindowsMenu();
-                screens.renderCurrentScreen();
-                drawInput(current_screen);
-                screens.drawWindowsMenu();
+                screens.showWindowsMenu(ctx);
+                screens.renderCurrentScreen(ctx);
+                drawInput(ctx);
+                screens.drawWindowsMenu(ctx);
             },
             else => {
-                handleArrowKey(special_key, current_screen);
-                screens.renderCurrentScreen();
-                drawInput(current_screen);
+                handleArrowKey(ctx, special_key);
+                screens.renderCurrentScreen(ctx);
+                drawInput(ctx);
             },
         }
         return;
@@ -331,17 +233,17 @@ pub fn handleKeyEvent(key_event: anytype, current_screen: ScreenType) void {
 
     // Handle character input
     if (key_event.character) |char| {
-        handleChar(char);
+        handleChar(ctx, char);
 
         // Redraw everything
-        screens.renderCurrentScreen();
-        drawInput(current_screen);
-        screens.drawWindowsMenu();
+        screens.renderCurrentScreen(ctx);
+        drawInput(ctx);
+        screens.drawWindowsMenu(ctx);
 
         // Process input on Enter for Main screen
-        if (char == '\n' and current_screen == .Main and !screens.menu_visible) {
-            processInput(current_screen);
-            drawInput(current_screen);
+        if (char == '\n' and ctx.current_screen == .Main and !ctx.menu_visible) {
+            processInput(ctx);
+            drawInput(ctx);
         }
     }
 }
