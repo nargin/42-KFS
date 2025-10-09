@@ -32,6 +32,12 @@ pub const Keyboard = struct {
     extended_key: bool = false,
 
     pub fn init() !Keyboard {
+        // Flush the keyboard buffer
+        // Without this, we might read stale data
+        while ((inb(KEYBOARD_STATUS_PORT) & 1) != 0) {
+            _ = inb(KEYBOARD_DATA_PORT);
+        }
+
         return Keyboard{};
     }
 

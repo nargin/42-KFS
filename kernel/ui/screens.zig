@@ -25,12 +25,12 @@ pub var menu_search_length: usize = 0;
 pub var menu_search_cursor: usize = 0;
 
 // Screen management
-var current_screen: ScreenType = .Main;
+pub var current_screen: ScreenType = .Main;
 
-fn switchToScreen(screen: ScreenType) void {
+pub fn switchToScreen(screen: ScreenType) void {
     current_screen = screen;
     input.switchToScreen(screen);
-    renderCurrentScreen(current_screen);
+    renderCurrentScreen();
     input.drawInput(current_screen);
 }
 
@@ -178,7 +178,7 @@ pub fn renderCurrentScreen() void {
         }
     }
 
-    drawHeader(current_screen); // Redraw with updated indicators
+    drawHeader(); // Redraw with updated indicators
 
     switch (current_screen) {
         .Main => renderMainScreen(),

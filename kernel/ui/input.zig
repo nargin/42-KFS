@@ -272,3 +272,76 @@ pub fn switchToScreen(screen: ScreenType) void {
         vga.hideCursor();
     }
 }
+
+// Central keyboard event dispatcher
+pub fn handleKeyEvent(key_event: anytype, current_screen: ScreenType) void {
+    if (!key_event.pressed) return;
+
+    const key_code = key_event.scancode & 0x7F;
+
+    // Handle F-keys for screen switching
+    switch (key_code) {
+        @intFromEnum(Key.F1) => {
+            screens.switchToScreen(.Main);
+            return;
+        },
+        @intFromEnum(Key.F2) => {
+            screens.switchToScreen(.Status);
+            return;
+        },
+        @intFromEnum(Key.F3) => {
+            screens.switchToScreen(.Logs);
+            return;
+        },
+        @intFromEnum(Key.F4) => {
+            screens.switchToScreen(.About);
+            return;
+        },
+        @intFromEnum(Key.Tab) => {
+            // Cycle through screens
+            const next_screen: ScreenType = switch (current_screen) {
+                .Main => .Status,
+                .Status => .Logs,
+                .Logs => .About,
+                .About => .Main,
+            };
+            screens.switchToScreen(next_screen);
+            return;
+        },
+        else => {},
+    }
+
+    // Handle special keys (arrows, Windows key, etc.)
+    if (key_event.special) |special_key| {
+        switch (special_key) {
+            .WindowsKey => {
+                screens.showWindowsMenu();
+                screens.renderCurrentScreen();
+                drawInput(current_screen);
+                screens.drawWindowsMenu();
+            },
+            else => {
+                handleArrowKey(special_key, current_screen);
+                screens.renderCurrentScreen();
+                drawInput(current_screen);
+            },
+        }
+        return;
+    }
+
+    // Handle character input
+    if (key_event.character) |char| {
+        handleChar(char);
+
+        // Redraw everything
+        screens.renderCurrentScreen();
+        drawInput(current_screen);
+        screens.drawWindowsMenu();
+
+        // Process input on Enter for Main screen
+        if (char == '\n' and current_screen == .Main and !screens.menu_visible) {
+            processInput(current_screen);
+            drawInput(current_screen);
+        }
+    }
+}
