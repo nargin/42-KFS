@@ -26,31 +26,3 @@
 
   # Clean build files
   make clean
-
-  Features
-
-  - ✅ GRUB multiboot compliant
-  - ✅ VGA text mode display
-  - ✅ Keyboard input handling
-  - ✅ Multiple terminal screens (F1-F4)
-  - ✅ Basic UI with scrolling
-  - 🚧 Working on: GDT implementation, memory management
-
-  Project Structure
-
-  kernel/
-  ├── main.zig           # Kernel entry point
-  ├── drivers/           # Hardware drivers (VGA, keyboard)
-  ├── arch/x86/          # x86-specific code
-  ├── ui/                # User interface code
-  └── utils/             # Shared types and constants
-
-  Assignment Progress
-
-  - ✅ KFS-1: Basic bootable kernel with screen output
-  - 🚧 KFS-2: GDT & Stack management (in progress)
-
-  Notes
-
-  This is a learning project for understanding low-level system programming and kernel development
-  concepts.

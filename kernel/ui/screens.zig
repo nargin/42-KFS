@@ -237,7 +237,7 @@ pub fn drawWindowsMenu(ctx: *const UIContext) void {
 
 pub fn setup_ui(ctx: *UIContext) void {
     vga.showCursor();
-    vga.setCursorPosition(input.PROMPT.len, 23); // Position at input area initially
+    vga.setCursorPosition(4 + input.getHostname().len, 23); // Position at input area initially
 
     renderCurrentScreen(ctx); // This will draw header and main screen
     input.drawInput(ctx);

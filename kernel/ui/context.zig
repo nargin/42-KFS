@@ -31,7 +31,7 @@ pub const TextBuffer = struct {
     }
 
     pub fn deleteChar(self: *TextBuffer) void {
-        if (self.cursor == 0) return;
+        if (self.cursor == 0 or self.length == 0) return;
 
         self.cursor -= 1;
         // Shift characters left
@@ -40,6 +40,14 @@ pub const TextBuffer = struct {
         }
         self.length -= 1;
         self.data[self.length] = 0;
+    }
+
+    pub fn startsWith(self: *TextBuffer, prefix: []const u8) bool {
+        if (self.length < prefix.len) return false;
+        for (prefix, 0..prefix.len) |c, i| {
+            if (self.data[i] != c) return false;
+        }
+        return true;
     }
 };
 
@@ -81,6 +89,14 @@ pub const ScrollableOutput = struct {
     pub fn scrollDown(self: *ScrollableOutput) void {
         if (self.scroll_offset > 0) {
             self.scroll_offset -= 1;
+        }
+    }
+
+    pub fn clear(self: *ScrollableOutput) void {
+        self.count = 0;
+        self.scroll_offset = 0;
+        for (self.lines) |*line| {
+            @memset(line, 0);
         }
     }
 };

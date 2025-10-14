@@ -57,6 +57,9 @@ fn kmain() void {
     ui_ctx = UIContext.init();
     ui_ctx.initViews();
 
+    // Initialize input subsystem
+    input.initHostname();
+
     // Initialize keyboard at runtime
     keyboard = Keyboard.init() catch {
         @panic("Failed to initialize keyboard");
