@@ -12,9 +12,9 @@ pub fn build(b: *std.Build) void {
     enabled_features.addFeature(@intFromEnum(std.Target.x86.Feature.soft_float));
 
     const target_query = std.Target.Query{
-        .cpu_arch = std.Target.Cpu.Arch.x86,
-        .os_tag = std.Target.Os.Tag.freestanding,
-        .abi = std.Target.Abi.none,
+        .cpu_arch = .x86,
+        .os_tag = .freestanding,
+        .abi = .none,
         .cpu_features_sub = disabled_features,
         .cpu_features_add = enabled_features,
     };
