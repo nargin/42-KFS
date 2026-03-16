@@ -5,7 +5,7 @@
 
   ## Dependencies
 
-  - **Zig 0.15.1** - Programming language and build system
+  - **Zig 0.15.2** - Programming language and build system
   - **QEMU** - x86_64 system emulator  
   - **GRUB** - Bootloader (grub-mkrescue)
   - **xorriso** - ISO creation utility
@@ -14,7 +14,7 @@
   ```bash
   sudo apt update
   sudo apt install qemu-system-x86 grub-pc-bin xorriso
-  # Install Zig 0.15.1 from https://ziglang.org/download/
+  # Install Zig 0.15.2 from https://ziglang.org/download/
 
   How to Build & Run
 
