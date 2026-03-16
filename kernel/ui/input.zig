@@ -142,9 +142,9 @@ pub fn drawInput(ctx: *UIContext) void {
 pub fn processInput(ctx: *UIContext) void {
     if (ctx.main_input.length == 0) return;
 
-    if (ctx.main_input.startsWith("/")) {
-        handleCommand(ctx);
-    }
+    // if (ctx.main_input.startsWith("/")) {
+    //     handleCommand(ctx);
+    // }
 
     // Create a log message with the user input
     var log_buffer: [80]u8 = [_]u8{0} ** 80;

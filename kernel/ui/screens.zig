@@ -142,7 +142,7 @@ pub fn renderAboutScreen() void {
     vga.putStringCentered(13, "Built with Zig", @intFromEnum(Color.LightGray));
     vga.putStringCentered(15, "A simple x86 kernel for learning purposes", @intFromEnum(Color.White));
 
-    vga.putStringCentered(19, "Author: Robin (Claude) Romain by contributions", @intFromEnum(Color.DarkGray));
+    vga.putStringCentered(19, "Author: Myself and I", @intFromEnum(Color.DarkGray));
     vga.putStringCentered(20, "Press F1-F4 to navigate", @intFromEnum(Color.Cyan));
 }
 
