@@ -1,9 +1,9 @@
-const std = @import("std");
 const vga = @import("drivers/vga.zig");
 const Color = @import("common/types.zig").Color;
 const Keyboard = @import("drivers/keyboard.zig").Keyboard;
 const panic = @import("panic.zig").panic;
-const screens = @import("ui/screens.zig");
+const gdt = @import("arch/x86/gdt.zig");
+const idt = @import("arch/x86/idt.zig");
 
 fn init_drivers() !void {
     vga.clearScreen(@intFromEnum(Color.LightGray));
@@ -14,6 +14,9 @@ fn init_drivers() !void {
 }
 
 pub fn kernel_init() void {
+    gdt.init();
+    // idt.init();
+
     init_drivers() catch |err| {
         panic(err);
     };
