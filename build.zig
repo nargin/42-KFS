@@ -32,8 +32,13 @@ pub fn build(b: *std.Build) void {
             .strip = true,
             .single_threaded = true,
             .omit_frame_pointer = true,
+            .pic = false,
         }),
     });
+
+    kernel.link_gc_sections = true;
+    kernel.link_data_sections = true;
+    kernel.link_function_sections = true;
 
     kernel.setLinkerScript(b.path("boot/linker.ld"));
     b.installArtifact(kernel);

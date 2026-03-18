@@ -17,6 +17,7 @@ $(KERNEL):
 
 $(ISO): $(KERNEL)
 	@mkdir -p $(GRUB_DIR)
+	strip --strip-all -R .comment -R .note $(KERNEL) # if anything goes wrong remove this, can messup with MAGIC number not in grub scanning range
 	@cp $(KERNEL) $(ISO_DIR)
 	@cp boot/grub.cfg $(GRUB_DIR)
 	grub-mkrescue -o $(ISO) isodir \
@@ -31,6 +32,16 @@ clean:
 	rm -rf zig-out kernel.iso isodir
 
 run: $(ISO)
-	qemu-system-x86_64 -cdrom $(ISO) -vga std -m 512M -serial stdio -no-reboot -no-shutdown
+	qemu-system-x86_64 -cdrom $(ISO) -vga std
 
-re: clean all run
+check-size:
+	@size=$$(du -b kernel.iso | cut -f1); \
+	limit=$$((10 * 1024 * 1024)); \
+	echo "ISO size: $$(du -sh kernel.iso | cut -f1)"; \
+	if [ $$size -gt $$limit ]; then \
+			echo "ERROR: exceeds 10MB ($$size bytes)"; exit 1; \
+	else \
+			echo "OK: within 10MB limit"; \
+	fi
+
+re: clean all run check-size

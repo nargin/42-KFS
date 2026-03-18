@@ -267,7 +267,7 @@ pub fn handleArrowKey(ctx: *UIContext, arrow_key: SpecialKey) void {
                 else => {},
             }
         },
-        .Status, .About => {
+        .Status, .About, .Debug => {
             // No scrolling on status/about screens
         },
     }
@@ -310,6 +310,10 @@ pub fn handleKeyEvent(ctx: *UIContext, key_event: anytype) void {
             screens.switchToScreen(ctx, .About);
             return;
         },
+        @intFromEnum(Key.F12) => {
+            screens.switchToScreen(ctx, .Debug);
+            return;
+        },
         @intFromEnum(Key.Tab) => {
             // Cycle through screens
             const next_screen: ScreenType = switch (ctx.current_screen) {
@@ -317,6 +321,7 @@ pub fn handleKeyEvent(ctx: *UIContext, key_event: anytype) void {
                 .Status => .Logs,
                 .Logs => .About,
                 .About => .Main,
+                .Debug => .Main,
             };
             screens.switchToScreen(ctx, next_screen);
             return;

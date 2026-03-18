@@ -29,13 +29,12 @@ pub fn drawHeader(ctx: *const UIContext) void {
     vga.putStringCentered(0, "=" ** (vga.VGA_WIDTH), Color.makeColor(Color.Yellow, Color.Magenta));
 
     vga.putStringCentered(1, "VeigarOS", Color.makeColor(Color.White, Color.Magenta));
-    vga.putStringCentered(2, "Interactive v1.0", Color.makeColor(Color.Yellow, Color.Magenta));
 
     // Screen indicators at bottom of header
-    vga.putString(2, 3, "F1:Main", indicatorColor(ctx, .Main));
-    vga.putString(12, 3, "F2:Status", indicatorColor(ctx, .Status));
-    vga.putString(24, 3, "F3:Logs", indicatorColor(ctx, .Logs));
-    vga.putString(34, 3, "F4:About", indicatorColor(ctx, .About));
+    vga.putString(2, 2, "F1:Main", indicatorColor(ctx, .Main));
+    vga.putString(12, 2, "F2:Status", indicatorColor(ctx, .Status));
+    vga.putString(24, 2, "F3:Logs", indicatorColor(ctx, .Logs));
+    vga.putString(34, 2, "F4:About", indicatorColor(ctx, .About));
 
     vga.putStringCentered(4, "=" ** (vga.VGA_WIDTH), Color.makeColor(Color.Yellow, Color.Magenta));
 }
@@ -156,13 +155,16 @@ pub fn renderCurrentScreen(ctx: *UIContext) void {
         }
     }
 
-    drawHeader(ctx); // Redraw with updated indicators
+    if (ctx.current_screen != .Debug) {
+        drawHeader(ctx); // Redraw with updated indicators
+    }
 
     switch (ctx.current_screen) {
         .Main => renderMainScreen(ctx),
         .Status => renderStatusScreen(),
         .Logs => renderLogsScreen(ctx),
         .About => renderAboutScreen(),
+        .Debug => renderDebugScreen(ctx),
     }
 }
 
@@ -248,4 +250,14 @@ pub fn setup_ui(ctx: *UIContext) void {
     addLog(ctx, "Keyboard driver loaded");
     addLog(ctx, "Multi-screen system active");
     addLog(ctx, "Press F1-F4 to switch screens");
+}
+
+pub fn renderDebugScreen(ctx: *UIContext) void {
+    vga.clearScreen(@intFromEnum(Color.Black));
+
+    for (0..80) |index| {
+        vga.putString(index, 0, &(ctx.debug_logs[index]), @intFromEnum(Color.White));
+    }
+
+    renderCurrentScreen(ctx);
 }

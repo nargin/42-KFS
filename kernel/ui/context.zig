@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const ScreenType = enum { Main, Status, Logs, About };
+pub const ScreenType = enum { Main, Status, Logs, About, Debug };
 
 // Reusable buffer with cursor/length
 pub const TextBuffer = struct {
@@ -117,6 +117,9 @@ pub const UIContext = struct {
     menu_visible: bool,
     menu_search: TextBuffer,
 
+    // Debug logs -- Read only
+    debug_logs: [50][80]u8,
+
     pub fn init() UIContext {
         return .{
             .current_screen = .Main,
@@ -129,6 +132,8 @@ pub const UIContext = struct {
             .logs = .{ .lines = undefined, .count = 0, .scroll_offset = 0 },
             .menu_visible = false,
             .menu_search = .{ .data = undefined, .length = 0, .cursor = 0 },
+
+            .debug_logs = [_][80]u8{[_]u8{0} ** 80} ** 50,
         };
     }
 

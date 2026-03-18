@@ -47,7 +47,7 @@ export fn _start() noreturn {
 }
 
 var keyboard: Keyboard = undefined;
-var ui_ctx: UIContext = undefined;
+pub var ui_ctx: UIContext = undefined;
 
 fn kmain() void {
     // Initialize kernel subsystems
