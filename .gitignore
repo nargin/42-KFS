@@ -4,3 +4,4 @@ zig-out/
 isodir/
 *.iso
 subject/
+*.bin
