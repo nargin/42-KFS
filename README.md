@@ -10,13 +10,22 @@
   - **GRUB** - Bootloader (grub-mkrescue)
   - **xorriso** - ISO creation utility
 
-  ### Ubuntu/Debian Installation:
+  ### Ubuntu/Gaybian Installation:
   ```bash
   sudo apt update
   sudo apt install qemu-system-x86 grub-pc-bin xorriso
   # Install Zig 0.15.2 from https://ziglang.org/download/
+  ```
 
-  How to Build & Run
+  ### macOS Installation:
+  ```bash
+  brew install qemu xorriso mtools
+  # macOS users can install the i686-elf-grub package from Homebrew core
+  brew install i686-elf-grub
+  brew install zig
+  ```
+
+  ## How to Build & Run
 
   # Build the kernel
   make

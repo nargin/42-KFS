@@ -2,6 +2,8 @@ BUILD_DIR := zig-out/bin
 ISO_DIR := isodir/boot
 GRUB_DIR := $(ISO_DIR)/grub
 
+GRUB_MKRESCUE := $(shell command -v i686-elf-grub-mkrescue 2>/dev/null || command -v grub-mkrescue 2>/dev/null || echo grub-mkrescue)
+
 # Targets
 KERNEL := $(BUILD_DIR)/kernel.elf
 ISO := kernel.iso
@@ -17,10 +19,10 @@ $(KERNEL):
 
 $(ISO): $(KERNEL)
 	@mkdir -p $(GRUB_DIR)
-	strip --strip-all -R .comment -R .note $(KERNEL) # if anything goes wrong remove this, can messup with MAGIC number not in grub scanning range
+# 	strip --strip-all -R .comment -R .note $(KERNEL) # if anything goes wrong remove this, can messup with MAGIC number not in grub scanning range
 	@cp $(KERNEL) $(ISO_DIR)
 	@cp boot/grub.cfg $(GRUB_DIR)
-	grub-mkrescue -o $(ISO) isodir \
+	$(GRUB_MKRESCUE) -o $(ISO) isodir \
 		--install-modules="multiboot" \
 		--compress=xz \
 		--locales="" \
