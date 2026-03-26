@@ -15,7 +15,7 @@ const GdtPtr = packed struct {
     base: u32,
 };
 
-var gdt: [3]GdtEntry = undefined;
+export var gdt: [7]GdtEntry linksection(".gdt") = undefined; // linked to 0x00000800
 var gdt_ptr: GdtPtr = undefined;
 
 fn makeEntry(base: u32, limit: u20, access: u8, flags: u4) GdtEntry {
@@ -33,34 +33,38 @@ fn makeEntry(base: u32, limit: u20, access: u8, flags: u4) GdtEntry {
 pub fn init() void {
     // src: https://wiki.osdev.org/GDT_Tutorial (64 Bit version)
     gdt[0] = makeEntry(0, 0x0, 0x0, 0x0); // Null Descriptor
-    gdt[1] = makeEntry(0, 0xFFFFF, 0x9A, 0xC); // Kernel Mode Code Segment
-    gdt[2] = makeEntry(0, 0xFFFFF, 0x92, 0xC);
+    // Kernel ---
+    gdt[1] = makeEntry(0, 0xFFFFF, 0x9A, 0xC); // Code Segment
+    gdt[2] = makeEntry(0, 0xFFFFF, 0x92, 0xC); // Data
+    gdt[3] = makeEntry(0, 0xFFFF, 0x92, 0xC); // Stack
+    // User space
+    gdt[4] = makeEntry(0, 0xFFFF, 0xFA, 0xC); // user code
+    gdt[5] = makeEntry(0, 0xFFFF, 0xF2, 0xC); // user data
+    gdt[6] = makeEntry(0, 0xFFFF, 0xF2, 0xC); // user stack
 
     // Access byte values:
-    // - 0x9A = 1001 1010 → present, ring 0, code, executable, readable
-    // - 0x92 = 1001 0010 → present, ring 0, data, readable, writable
-
-    // user space
-    // gdt[3] = makeEntry(0, 0xFFFFF, 0xF2, 0xC);
-    // gdt[4] = makeEntry(0, 0xFFFFF, 0xFA, 0xA);
-    // gdt[5] = makeEntry(0, 0xFFFFF, 0x89, 0x0);
+    //   - 0x9A = 1001 1010 → present, ring 0, code segment, executable, readable
+    //   - 0x92 = 1001 0010 → present, ring 0, data segment, writable (used for data and stack)
+    //   - 0xFA = 1111 1010 → present, ring 3, code segment, executable, readable
+    //   - 0xF2 = 1111 0010 → present, ring 3, data segment, writable
 
     gdt_ptr = .{
-        .limit = @sizeOf(@TypeOf(gdt)) - 1,
+        .limit = @sizeOf(@TypeOf(gdt)) - 1, // might have to change cause of fix sized smtg idk...
         .base = @intFromPtr(&gdt),
     };
 
     asm volatile (
         \\ lgdt (%[ptr])
-        \\ mov $0x10, %%ax       // 0x10 = index 2 (data segment)
-        \\ mov %%ax, %%ds
-        \\ mov %%ax, %%es
-        \\ mov %%ax, %%fs
-        \\ mov %%ax, %%gs
-        \\ mov %%ax, %%ss
-        \\ push $0x08            // 0x08 = index 1 (code segment)
-        \\ push $.flush
-        \\ lret                  // far return -> reloads CS
+        \\ mov $0x18, %ax   //kernel stack selector (index 3)
+        \\ mov %ax, %ss     // SS = kernel stack segment
+        \\ mov $0x10, %%ax  // 0x10 = index 2 (data segment)
+        \\ mov %%ax, %%ds   // DS = kernel data
+        \\ mov %%ax, %%es   // ES = kernel data  
+        \\ mov %%ax, %%fs   // FS = kernel data
+        \\ mov %%ax, %%gs   // GS = kernel data
+        \\ push $0x08       // push kernel code selector onto stack 
+        \\ push $.flush     // 
+        \\ lret
         \\ .flush:
         :
         : [ptr] "r" (&gdt_ptr),

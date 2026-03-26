@@ -1,19 +1,15 @@
-const std = @import("std");
-const Keyboard = @import("drivers/keyboard.zig").Keyboard;
-const keys = @import("common/types.zig").Key;
-const Color = @import("common/types.zig").Color;
 const vga = @import("drivers/vga.zig");
-
+const Color = vga.Color;
+const Keyboard = @import("drivers/keyboard.zig").Keyboard;
 const screen = @import("ui/screens.zig");
 const UIContext = @import("ui/context.zig").UIContext;
-
-const panic = @import("panic.zig").panic;
 const input = @import("ui/input.zig");
-const init = @import("init.zig");
+const panic = @import("panic.zig").panic;
+const gdt = @import("arch/x86/gdt.zig");
 
 const ALIGN = 1 << 0;
 const MEMINFO = 1 << 1;
-const MAGIC = 0x1BADB002; // Multiboot magic number
+const MAGIC = 0x1BADB002;
 const FLAGS = ALIGN | MEMINFO;
 
 const MultibootHeader = packed struct {
@@ -39,8 +35,6 @@ export fn _start() noreturn {
         : [stack_top] "i" (@as([*]align(16) u8, @ptrCast(&stack_bytes)) + @sizeOf(@TypeOf(stack_bytes))),
           [kmain] "X" (&kmain),
     );
-
-    // If kmain ever returns, halt the system
     while (true) {
         asm volatile ("hlt");
     }
@@ -49,24 +43,25 @@ export fn _start() noreturn {
 var keyboard: Keyboard = undefined;
 pub var ui_ctx: UIContext = undefined;
 
+fn kernel_init() void {
+    gdt.init();
+    vga.clearScreen(Color.make(Color.LightGray, Color.Black));
+    _ = Keyboard.init() catch |err| {
+        panic(err);
+    };
+}
+
 fn kmain() void {
-    // Initialize kernel subsystems
-    init.kernel_init();
+    kernel_init();
 
-    // Initialize UI context
     ui_ctx = UIContext.init();
-    ui_ctx.initViews();
-
-    // Initialize input subsystem
     input.initHostname();
 
-    // Initialize keyboard at runtime
     keyboard = Keyboard.init() catch {
         @panic("Failed to initialize keyboard");
     };
     screen.setup_ui(&ui_ctx);
 
-    // Main loop - simple polling for now
     while (true) {
         if (keyboard.readScancode()) |key_event| {
             input.handleKeyEvent(&ui_ctx, key_event);

@@ -3,9 +3,9 @@ const vga = @import("../drivers/vga.zig");
 const screens = @import("./screens.zig");
 const UIContext = @import("context.zig").UIContext;
 const ScreenType = @import("context.zig").ScreenType;
-const SpecialKey = @import("../common/types.zig").SpecialKey;
-const Key = @import("../common/types.zig").Key;
-const ASCII = @import("../common/types.zig").ASCII;
+const SpecialKey = @import("../drivers/keyboard.zig").SpecialKey;
+const Key = @import("../drivers/keyboard.zig").Key;
+const ASCII = @import("../drivers/keyboard.zig").ASCII;
 
 var HOSTNAME_BUF: [32]u8 = undefined;
 var HOSTNAME_LEN: usize = 4;
@@ -43,8 +43,8 @@ pub fn getPrompt(buffer: []u8) []const u8 {
 }
 
 // Display constants
-const INPUT_ROW = 23;
-const SEPARATOR_ROW = 22;
+const INPUT_ROW = 24;
+const SEPARATOR_ROW = 23;
 const MAX_INPUT_BUFFER_SIZE = 255;
 const MAX_MENU_SEARCH_SIZE = 63;
 const MENU_SEARCH_DISPLAY_WIDTH = 60;
@@ -57,17 +57,15 @@ pub fn strcmp(a: []const u8, b: []const u8) bool {
     return true;
 }
 
-/// TODO: Refacto behavior of this function if should manipulate the context directly or return a value
 pub fn handleCommand(ctx: *UIContext) void {
     const command = ctx.main_input.data[1..ctx.main_input.length]; // Skip the leading '/'
 
     if (strcmp(command, "clear")) {
-        // Clear main output
         ctx.main_output.clear();
+    } else if (strcmp(command, "memmap")) {
+        printMemoryMap(ctx);
     } else if (strcmp(command, "help")) {
-        const msg = "Available commands: /clear, /help, /sethostname <name>";
-        @memcpy(ctx.main_input.data[0..msg.len], msg);
-        screens.addLog(ctx, ctx.main_input.data[0..msg.len]);
+        ctx.main_output.addLine("Commands: /clear, /help, /memmap, /sethostname <name>");
     } else if (ctx.main_input.startsWith("/sethostname")) {
         var hostname_msg: [80]u8 = [_]u8{0} ** 80;
         // Skip "/sethostname " (13 chars)
@@ -76,36 +74,22 @@ pub fn handleCommand(ctx: *UIContext) void {
             start += 1;
         }
         if (start >= ctx.main_input.length) {
-            const msg = "Usage: /sethostname <name>";
-            @memcpy(hostname_msg[0..msg.len], msg);
-            screens.addLog(ctx, hostname_msg[0..msg.len]);
-            screens.renderCurrentScreen(ctx);
+            ctx.main_output.addLine("Usage: /sethostname <name>");
             return;
         }
         const new_name = ctx.main_input.data[start..ctx.main_input.length];
         if (new_name.len == 0 or new_name.len > 32) {
-            const msg = "Hostname must be 1-32 characters";
-            @memcpy(hostname_msg[0..msg.len], msg);
-            screens.addLog(ctx, hostname_msg[0..msg.len]);
-            screens.renderCurrentScreen(ctx);
+            ctx.main_output.addLine("Hostname must be 1-32 characters");
             return;
         }
         setHostname(new_name);
         const prefix = "Hostname changed to: ";
         @memcpy(hostname_msg[0..prefix.len], prefix);
         @memcpy(hostname_msg[prefix.len .. prefix.len + new_name.len], new_name);
-        screens.addLog(ctx, hostname_msg[0 .. prefix.len + new_name.len]);
-        screens.renderCurrentScreen(ctx);
+        ctx.main_output.addLine(hostname_msg[0 .. prefix.len + new_name.len]);
     } else {
-        var unknown_msg: [80]u8 = [_]u8{0} ** 80;
-        const msg = "Unknown command. Type /help for a list of commands.";
-        @memcpy(unknown_msg[0..msg.len], msg);
-        screens.addLog(ctx, unknown_msg[0..msg.len]);
-        screens.renderCurrentScreen(ctx);
+        ctx.main_output.addLine("Unknown command. Type /help for a list of commands.");
     }
-
-    // Clear input buffer after processing command
-    ctx.main_input.clear();
 }
 
 pub fn drawInput(ctx: *UIContext) void {
@@ -113,7 +97,7 @@ pub fn drawInput(ctx: *UIContext) void {
     if (ctx.current_screen != .Main) return;
 
     // Draw input separator line
-    vga.putString(0, SEPARATOR_ROW, "=" ** vga.VGA_WIDTH, 0x1E); // Yellow on blue
+    vga.putString(0, SEPARATOR_ROW, "\xCD" ** vga.VGA_WIDTH, 0x1E);
 
     // Build and draw prompt
     var prompt_buf: [64]u8 = undefined;
@@ -142,22 +126,33 @@ pub fn drawInput(ctx: *UIContext) void {
 pub fn processInput(ctx: *UIContext) void {
     if (ctx.main_input.length == 0) return;
 
-    // if (ctx.main_input.startsWith("/")) {
-    //     handleCommand(ctx);
-    // }
+    if (ctx.main_input.startsWith("/")) {
+        // Echo the command to main output
+        var echo: [80]u8 = [_]u8{0} ** 80;
+        const prefix = "> ";
+        @memcpy(echo[0..prefix.len], prefix);
+        const copy_len = @min(ctx.main_input.length, 80 - prefix.len);
+        @memcpy(echo[prefix.len .. prefix.len + copy_len], ctx.main_input.data[0..copy_len]);
+        ctx.main_output.addLine(echo[0 .. prefix.len + copy_len]);
 
-    // Create a log message with the user input
-    var log_buffer: [80]u8 = [_]u8{0} ** 80;
-    const hostname = getHostname();
-    const suffix = ": ";
-    var pos: usize = 0;
-    @memcpy(log_buffer[pos .. pos + hostname.len], hostname);
-    pos += hostname.len;
-    @memcpy(log_buffer[pos .. pos + suffix.len], suffix);
-    pos += suffix.len;
-    const copy_len = @min(ctx.main_input.length, 80 - pos - 1);
-    @memcpy(log_buffer[pos .. pos + copy_len], ctx.main_input.data[0..copy_len]);
-    screens.addLog(ctx, log_buffer[0 .. pos + copy_len]);
+        handleCommand(ctx);
+        ctx.main_input.clear();
+        screens.renderCurrentScreen(ctx);
+    } else {
+        // Create a log message with the user input
+        var log_buffer: [80]u8 = [_]u8{0} ** 80;
+        const hostname = getHostname();
+        const suffix = ": ";
+        var pos: usize = 0;
+        @memcpy(log_buffer[pos .. pos + hostname.len], hostname);
+        pos += hostname.len;
+        @memcpy(log_buffer[pos .. pos + suffix.len], suffix);
+        pos += suffix.len;
+        const copy_len = @min(ctx.main_input.length, 80 - pos - 1);
+
+        @memcpy(log_buffer[pos .. pos + copy_len], ctx.main_input.data[0..copy_len]);
+        screens.addLog(ctx, log_buffer[0 .. pos + copy_len]);
+    }
 
     // Save to persistent output lines for main screen
     if (ctx.current_screen == .Main) {
@@ -248,7 +243,7 @@ pub fn handleArrowKey(ctx: *UIContext, arrow_key: SpecialKey) void {
                     }
                 },
                 .ArrowUp => {
-                    ctx.main_output.scrollUp(11);
+                    ctx.main_output.scrollUp();
                 },
                 .ArrowDown => {
                     ctx.main_output.scrollDown();
@@ -259,7 +254,7 @@ pub fn handleArrowKey(ctx: *UIContext, arrow_key: SpecialKey) void {
         .Logs => {
             switch (arrow_key) {
                 .ArrowUp => {
-                    ctx.logs.scrollUp(13);
+                    ctx.logs.scrollUp();
                 },
                 .ArrowDown => {
                     ctx.logs.scrollDown();
@@ -361,5 +356,47 @@ pub fn handleKeyEvent(ctx: *UIContext, key_event: anytype) void {
             processInput(ctx);
             drawInput(ctx);
         }
+    }
+}
+
+fn printMemoryMap(ctx: *UIContext) void {
+    const start: u32 = 0x00200000; // kernel load address
+    const rows = 20;
+
+    var row: u32 = 0;
+    while (row < rows) : (row += 1) {
+        const addr = start + row * 16;
+        const bytes: [*]const u8 = @ptrFromInt(addr);
+        var line: [80]u8 = [_]u8{' '} ** 80;
+        var pos: usize = 0;
+
+        // Address
+        const hdr = std.fmt.bufPrint(line[pos..], "0x{X:0>8}  ", .{addr}) catch continue;
+        pos += hdr.len;
+
+        // Hex bytes
+        for (0..16) |i| {
+            const h = std.fmt.bufPrint(line[pos..], "{X:0>2}", .{bytes[i]}) catch continue;
+            pos += h.len;
+            if (i < 15) {
+                line[pos] = ' ';
+                pos += 1;
+            }
+        }
+
+        // ASCII
+        line[pos] = ' ';
+        pos += 1;
+        line[pos] = '|';
+        pos += 1;
+        for (0..16) |i| {
+            const b = bytes[i];
+            line[pos] = if (b >= 32 and b < 127) b else '.';
+            pos += 1;
+        }
+        line[pos] = '|';
+        pos += 1;
+
+        ctx.main_output.addLine(line[0..pos]);
     }
 }

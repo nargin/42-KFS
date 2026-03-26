@@ -1,5 +1,27 @@
-const std = @import("std");
 const outb = @import("../arch/x86/io.zig").outb;
+
+pub const Color = enum(u8) {
+    Black,
+    Blue,
+    Green,
+    Cyan,
+    Red,
+    Magenta,
+    Brown,
+    LightGray,
+    DarkGray,
+    LightBlue,
+    LightGreen,
+    LightCyan,
+    LightRed,
+    LightMagenta,
+    Yellow,
+    White,
+
+    pub fn make(foreground: Color, background: Color) u8 {
+        return @intFromEnum(foreground) | (@intFromEnum(background) << 4);
+    }
+};
 
 // VGA constants
 const VGA_TEXT_BUFFER_ADDRESS = 0xB8000;

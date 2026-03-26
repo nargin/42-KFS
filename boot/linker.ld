@@ -1,8 +1,12 @@
 ENTRY(_start)
  
 SECTIONS {
-    . = 2M;
+    . = 0x00000800;
+    .gdt : {
+        KEEP(*(.gdt))
+    }
 
+    . = 2M;
     .text : ALIGN(4K) {
         /* We need to specify KEEP to prevent the linker from garbage-collecting the multiboot section. */
         KEEP(*(.multiboot))
@@ -28,4 +32,5 @@ SECTIONS {
         *(.eh_frame*)
         *(.debug*)
     }
+
 }
