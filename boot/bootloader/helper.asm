@@ -19,7 +19,7 @@ printn:
 print_mem:
     call newline
 
-    mov si, mem_dump_msg
+    mov si, MEM_DUMP_MSG
     call print_str
 
     call newline
@@ -58,7 +58,7 @@ print_mem:
     call print_str
     call newline
     
-    mov si, mem_dump_done_msg
+    mov si, MEM_DUMP_DONE_MSG
     call print_str
     call newline
 
@@ -67,10 +67,10 @@ print_mem:
 delimiter:
     db "----------------", 0
 
-mem_dump_msg:
+MEM_DUMP_MSG:
     db "Memory dump:", 0
 
-mem_dump_done_msg:
+MEM_DUMP_DONE_MSG:
     db "Memory dump complete. 32 bytes printed.", 0
 
 newline:
@@ -79,3 +79,11 @@ newline:
     mov al, 0x0d ; carriage return character
     int 0x10
     ret
+
+print_hex:
+    ; param: dx = value to print in hexadecimal
+    mov ax, dx ; copy value to ax for manipulation
+
+    ; 
+
+HEX_OUT: db "0x0000", 0

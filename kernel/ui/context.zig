@@ -88,14 +88,11 @@ pub fn TextBuffer(comptime max_len: usize) type {
 
 pub const UIContext = struct {
     current_screen: ScreenType = .Main,
-    main_output: ScrollableOutput(25) = .{},
+    main_output: ScrollableOutput(500) = .{},
     main_input: TextBuffer(256) = .{},
     logs: ScrollableOutput(50) = .{},
     menu_visible: bool = false,
     menu_search: TextBuffer(64) = .{},
-
-    // Debug logs -- Read only
-    debug_logs: [50][80]u8,
 
     pub fn init() UIContext {
         return .{};

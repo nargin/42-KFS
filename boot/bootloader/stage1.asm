@@ -9,8 +9,8 @@ int 0x10
 
 
 ;;; some testing
-mov bp, 0x8000
-mov sp, bp
+mov bp, 0x8000 ; base stack pointer at 0x8000
+mov sp, bp ; stack pointer to 0x8000
 
 push 'A'
 push 'B'
@@ -18,18 +18,8 @@ push 'C'
 
 call print_mem
 
-mov al, '1'
-call printn
-
-; pop bx
-mov al, [0x7ffc] ; this is B for some reasons
-int 0x10
-
-mov al, '2'
-call printn
-
-mov al, [0x7ffe] ; read from memory address 0x7FFE, which should be 'A'
-int 0x10
+mov dx, 0xdf1e
+call print_hex
 ;;;
 
 jmp $ ; jump to current address = infinite loop

@@ -15,7 +15,7 @@ const GdtPtr = packed struct {
     base: u32,
 };
 
-export var gdt: [7]GdtEntry linksection(".gdt") = undefined; // linked to 0x00000800
+pub export var gdt: [7]GdtEntry linksection(".gdt") = undefined; // linked to 0x00000800
 var gdt_ptr: GdtPtr = undefined;
 
 fn makeEntry(base: u32, limit: u20, access: u8, flags: u4) GdtEntry {

@@ -24,7 +24,7 @@ export var multiboot: MultibootHeader align(4) linksection(".multiboot") = .{
     .checksum = -(MAGIC + FLAGS),
 };
 
-var stack_bytes: [16 * 1024]u8 align(16) linksection(".bss") = undefined;
+var stack_bytes: [64 * 1024]u8 align(16) linksection(".bss") = undefined;
 
 export fn _start() noreturn {
     asm volatile (
@@ -54,7 +54,6 @@ fn kernel_init() void {
 fn kmain() void {
     kernel_init();
 
-    ui_ctx = UIContext.init();
     input.initHostname();
 
     keyboard = Keyboard.init() catch {

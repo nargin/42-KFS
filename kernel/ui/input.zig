@@ -6,6 +6,7 @@ const ScreenType = @import("context.zig").ScreenType;
 const SpecialKey = @import("../drivers/keyboard.zig").SpecialKey;
 const Key = @import("../drivers/keyboard.zig").Key;
 const ASCII = @import("../drivers/keyboard.zig").ASCII;
+const power = @import("../panic.zig");
 
 var HOSTNAME_BUF: [32]u8 = undefined;
 var HOSTNAME_LEN: usize = 4;
@@ -62,10 +63,25 @@ pub fn handleCommand(ctx: *UIContext) void {
 
     if (strcmp(command, "clear")) {
         ctx.main_output.clear();
+    } else if (strcmp(command, "stack")) {
+        printStack(ctx);
+    } else if (strcmp(command, "trace")) {
+        printStackTrace(ctx);
+    } else if (strcmp(command, "panic")) {
+        power.panic("Panic triggered from shell");
+    } else if (strcmp(command, "halt")) {
+        power.halt();
+    } else if (strcmp(command, "reboot")) {
+        power.reboot();
+    } else if (strcmp(command, "shutdown")) {
+        power.shutdown();
     } else if (strcmp(command, "memmap")) {
         printMemoryMap(ctx);
     } else if (strcmp(command, "help")) {
-        ctx.main_output.addLine("Commands: /clear, /help, /memmap, /sethostname <name>");
+        ctx.main_output.addLine("Commands:");
+        ctx.main_output.addLine("  /clear  /memmap  /stack  /trace");
+        ctx.main_output.addLine("  /halt   /reboot  /shutdown  /panic");
+        ctx.main_output.addLine("  /sethostname <name>");
     } else if (ctx.main_input.startsWith("/sethostname")) {
         var hostname_msg: [80]u8 = [_]u8{0} ** 80;
         // Skip "/sethostname " (13 chars)
@@ -138,6 +154,7 @@ pub fn processInput(ctx: *UIContext) void {
         handleCommand(ctx);
         ctx.main_input.clear();
         screens.renderCurrentScreen(ctx);
+        return;
     } else {
         // Create a log message with the user input
         var log_buffer: [80]u8 = [_]u8{0} ** 80;
@@ -262,7 +279,7 @@ pub fn handleArrowKey(ctx: *UIContext, arrow_key: SpecialKey) void {
                 else => {},
             }
         },
-        .Status, .About, .Debug => {
+        .Status, .About => {
             // No scrolling on status/about screens
         },
     }
@@ -305,10 +322,6 @@ pub fn handleKeyEvent(ctx: *UIContext, key_event: anytype) void {
             screens.switchToScreen(ctx, .About);
             return;
         },
-        @intFromEnum(Key.F12) => {
-            screens.switchToScreen(ctx, .Debug);
-            return;
-        },
         @intFromEnum(Key.Tab) => {
             // Cycle through screens
             const next_screen: ScreenType = switch (ctx.current_screen) {
@@ -316,7 +329,6 @@ pub fn handleKeyEvent(ctx: *UIContext, key_event: anytype) void {
                 .Status => .Logs,
                 .Logs => .About,
                 .About => .Main,
-                .Debug => .Main,
             };
             screens.switchToScreen(ctx, next_screen);
             return;
@@ -399,4 +411,48 @@ fn printMemoryMap(ctx: *UIContext) void {
 
         ctx.main_output.addLine(line[0..pos]);
     }
+}
+
+fn printStack(ctx: *UIContext) void {
+    var esp: u32 = 0;
+    var ebp: u32 = 0;
+    asm volatile ("movl %%esp, %[esp]"
+        : [esp] "=r" (esp),
+    );
+    asm volatile ("movl %%ebp, %[ebp]"
+        : [ebp] "=r" (ebp),
+    );
+
+    var line: [80]u8 = undefined;
+    const hdr = std.fmt.bufPrint(&line, "ESP=0x{X:0>8}  EBP=0x{X:0>8}", .{ esp, ebp }) catch
+        return;
+    ctx.main_output.addLine(hdr);
+
+    // Walk from ESP up to EBP, 4 bytes at a time
+    var addr = esp;
+    while (addr <= ebp and addr + 3 <= ebp) : (addr += 4) {
+        const val: *const u32 = @ptrFromInt(addr);
+        const l = std.fmt.bufPrint(&line, "  [0x{X:0>8}] = 0x{X:0>8}", .{ addr, val.* }) catch continue;
+        ctx.main_output.addLine(l);
+    }
+}
+
+fn printStackTrace(ctx: *UIContext) void {
+    var ebp: u32 = 0;
+    asm volatile ("movl %%ebp, %[ebp]"
+        : [ebp] "=r" (ebp),
+    );
+
+    ctx.main_output.addLine("--- stack trace ---");
+    var line: [80]u8 = undefined;
+    var frame: u32 = 0;
+    while (ebp != 0 and frame < 16) : (frame += 1) {
+        const ret: u32 = @as(*const u32, @ptrFromInt(ebp + 4)).*;
+        const l = std.fmt.bufPrint(&line, "  #{d}  ebp=0x{X:0>8}  ret=0x{X:0>8}", .{ frame, ebp, ret }) catch break;
+        ctx.main_output.addLine(l);
+        const next: u32 = @as(*const u32, @ptrFromInt(ebp)).*;
+        if (next <= ebp) break;
+        ebp = next;
+    }
+    ctx.main_output.addLine("-------------------");
 }

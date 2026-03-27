@@ -4,6 +4,7 @@ const Color = vga.Color;
 const input = @import("input.zig");
 const UIContext = @import("context.zig").UIContext;
 pub const ScreenType = @import("context.zig").ScreenType;
+const gdt = @import("../arch/x86/gdt.zig");
 
 // Layout
 //   Row 0    : header title     (magenta)
@@ -52,6 +53,12 @@ pub fn drawHeader(ctx: *const UIContext) void {
 }
 
 pub fn renderMainScreen(ctx: *UIContext) void {
+    // Clear content rows before drawing to avoid leftover characters from
+    // longer lines that were rendered in a previous call.
+    for (CONTENT_ROW..CONTENT_END + 1) |row| {
+        vga.putString(0, row, " " ** vga.VGA_WIDTH, Color.make(Color.LightGray, Color.Black));
+    }
+
     const visible = VISIBLE_LINES;
     const count = ctx.main_output.count;
 
@@ -104,11 +111,13 @@ pub fn renderStatusScreen() void {
 
     vga.putString(4, 7, "Kernel  : VeigarOS v1.0", ok);
     vga.putString(4, 8, "Arch    : x86 32-bit protected mode", info);
-    vga.putString(4, 9, "GDT     : loaded  (7 entries @ 0x800)", ok);
+    var gdt_buf: [48]u8 = undefined;
+    const gdt_line = std.fmt.bufPrint(&gdt_buf, "GDT     : loaded  (7 entries @ 0x{X:0>8})", .{@intFromPtr(&gdt.gdt)}) catch "GDT     : loaded";
+    vga.putString(4, 9, gdt_line, ok);
     vga.putString(4, 10, "IDT     : not loaded", warn);
     vga.putString(4, 11, "Paging  : not enabled", warn);
     vga.putString(4, 13, "VGA     : text mode 80x25", info);
-    vga.putString(4, 14, "Stack   : 16 KB @ .bss", info);
+    vga.putString(4, 14, "Stack   : 64 KB @ .bss", info);
 }
 
 pub fn renderLogsScreen(ctx: *UIContext) void {

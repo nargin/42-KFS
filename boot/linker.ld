@@ -6,7 +6,7 @@ SECTIONS {
         KEEP(*(.gdt))
     }
 
-    . = 2M;
+    . = 0x200000; /* 1MB */
     .text : ALIGN(4K) {
         /* We need to specify KEEP to prevent the linker from garbage-collecting the multiboot section. */
         KEEP(*(.multiboot))
