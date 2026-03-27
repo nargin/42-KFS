@@ -437,6 +437,7 @@ fn printStack(ctx: *UIContext) void {
     }
 }
 
+// I hate this function but needed for subject bonus
 fn printStackTrace(ctx: *UIContext) void {
     var ebp: u32 = 0;
     asm volatile ("movl %%ebp, %[ebp]"
