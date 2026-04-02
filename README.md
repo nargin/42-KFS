@@ -10,7 +10,7 @@
   - **GRUB** - Bootloader (grub-mkrescue)
   - **xorriso** - ISO creation utility
 
-  ### Ubuntu/Gaybian Installation:
+  ### Ubuntu/Debian Installation:
   ```bash
   sudo apt update
   sudo apt install qemu-system-x86 grub-pc-bin xorriso
