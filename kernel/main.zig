@@ -54,8 +54,6 @@ fn kernel_init() void {
 fn kmain() void {
     kernel_init();
 
-    input.initHostname();
-
     keyboard = Keyboard.init() catch {
         @panic("Failed to initialize keyboard");
     };

@@ -1,5 +1,3 @@
-pub const ScreenType = enum { Main, Status, Logs, About };
-
 pub fn ScrollableOutput(comptime max_lines: usize) type {
     return struct {
         const Self = @This();
@@ -20,15 +18,9 @@ pub fn ScrollableOutput(comptime max_lines: usize) type {
                 const n = @min(message.len, 79);
                 @memcpy(self.lines[max_lines - 1][0..n], message[0..n]);
             }
-            // scroll_offset = 0 means "pinned to bottom" (newest content).
-            // Adding a line keeps us pinned unless the user has scrolled up.
             if (self.scroll_offset > 0) self.scroll_offset += 1;
         }
 
-        // scroll_offset is distance from the bottom:
-        //   0           → show newest lines
-        //   count - vis → show oldest lines
-        // Clamping is done by the renderer, not here.
         pub fn scrollUp(self: *Self) void {
             self.scroll_offset += 1;
         }
@@ -87,14 +79,7 @@ pub fn TextBuffer(comptime max_len: usize) type {
 }
 
 pub const UIContext = struct {
-    current_screen: ScreenType = .Main,
     main_output: ScrollableOutput(500) = .{},
     main_input: TextBuffer(256) = .{},
-    logs: ScrollableOutput(50) = .{},
-    menu_visible: bool = false,
-    menu_search: TextBuffer(64) = .{},
-
-    pub fn init() UIContext {
-        return .{};
-    }
+    exit_code: i8 = -1,
 };

@@ -19,7 +19,6 @@ $(KERNEL):
 
 $(ISO): $(KERNEL)
 	@mkdir -p $(GRUB_DIR)
-# 	strip --strip-all -R .comment -R .note $(KERNEL) # if anything goes wrong remove this, can messup with MAGIC number not in grub scanning range
 	@cp $(KERNEL) $(ISO_DIR)
 	@cp boot/grub.cfg $(GRUB_DIR)
 	$(GRUB_MKRESCUE) -o $(ISO) isodir \

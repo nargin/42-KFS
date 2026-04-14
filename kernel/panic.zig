@@ -30,7 +30,7 @@ pub fn shutdown() noreturn {
 }
 
 pub fn panic(message: []const u8) noreturn {
-    asm volatile ("cli");
+    // asm volatile ("cli");
     vga.clearScreen(Color.make(Color.White, Color.Red));
     vga.putStringCentered(5, "!!! KERNEL PANIC !!!", Color.make(Color.Yellow, Color.Red));
     vga.putStringCentered(7, message, Color.make(Color.White, Color.Red));
